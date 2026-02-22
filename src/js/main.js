@@ -62,6 +62,7 @@ function buildCoverCard(collection, basePath = '', isFirst = false, isEager = fa
     // LCP image — load immediately with high priority
     img.src = coverSrc;
     if (coverSrcset) { img.srcset = coverSrcset; img.sizes = coverSizes; }
+    img.loading = 'eager';
     img.fetchPriority = 'high';
     img.onload = () => img.classList.add('loaded');
     img.onerror = () => img.classList.add('loaded');
@@ -276,6 +277,7 @@ async function renderCollection() {
       // LCP image — load immediately with high priority
       img.src = photo.src;
       if (photo.srcset) { img.srcset = photo.srcset; img.sizes = photoSizes; }
+      img.loading = 'eager';
       img.fetchPriority = 'high';
       img.onload = () => img.classList.add('loaded');
       img.onerror = () => img.classList.add('loaded');
