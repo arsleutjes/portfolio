@@ -85,6 +85,47 @@ function buildCoverCard(collection, basePath = '', isFirst = false) {
   return a;
 }
 
+// ─── Social meta helpers ──────────────────────────────────────────────────
+
+/**
+ * Update a <meta> tag's content attribute.
+ * Creates the tag if it does not already exist.
+ * @param {'name'|'property'} attr
+ * @param {string} value
+ * @param {string} content
+ */
+function setMeta(attr, value, content) {
+  let el = document.querySelector(`meta[${attr}="${value}"]`);
+  if (!el) {
+    el = document.createElement('meta');
+    el.setAttribute(attr, value);
+    document.head.appendChild(el);
+  }
+  el.setAttribute('content', content);
+}
+
+/**
+ * Populate Open Graph and Twitter Card tags for a collection page.
+ * @param {object} collection
+ * @param {string} siteTitle
+ */
+function updateCollectionMeta(collection, siteTitle) {
+  const pageTitle = `${collection.title} — ${siteTitle}`;
+  const description = `${collection.title} (${collection.year}) — ${siteTitle}`;
+  const imageUrl = collection.cover
+    ? new URL(collection.cover, window.location.href).href
+    : '';
+  const pageUrl = `${window.location.origin}${window.location.pathname}?slug=${encodeURIComponent(collection.slug)}`;
+
+  setMeta('property', 'og:title', pageTitle);
+  setMeta('property', 'og:description', description);
+  setMeta('property', 'og:url', pageUrl);
+  setMeta('property', 'og:image', imageUrl);
+  setMeta('name', 'twitter:title', pageTitle);
+  setMeta('name', 'twitter:description', description);
+  setMeta('name', 'twitter:image', imageUrl);
+}
+
 // ─── Homepage ──────────────────────────────────────────────────────────────
 
 async function renderHomepage() {
@@ -137,6 +178,7 @@ async function renderCollection() {
 
   // Page metadata
   document.title = `${collection.title} — ${manifest.site.title}`;
+  updateCollectionMeta(collection, manifest.site.title);
   document.getElementById('page-title').textContent = collection.title;
   document.getElementById('page-year').textContent = collection.year;
 

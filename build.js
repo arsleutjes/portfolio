@@ -290,5 +290,27 @@ if (fs.existsSync(aboutMdPath) && fs.existsSync(aboutHtmlDistPath)) {
 
   fs.writeFileSync(path.join(DIST, 'manifest.json'), JSON.stringify(manifest, null, 2));
   console.log(`\nWrote _site/manifest.json with ${output.length} collection(s).`);
+
+  // ─── Inject absolute OG URLs into _site/index.html ───────────────────────
+  // og:image and og:url require absolute URLs; fill them in at build time
+  // using the SITE_URL environment variable.
+  const siteUrl = (process.env.SITE_URL || '').replace(/\/$/, '');
+  if (siteUrl && output.length > 0) {
+    const indexDistPath = path.join(DIST, 'index.html');
+    if (fs.existsSync(indexDistPath)) {
+      let html = fs.readFileSync(indexDistPath, 'utf8');
+      const coverUrl = output[0].cover ? `${siteUrl}/${output[0].cover}` : '';
+      html = html.replace(/(property="og:url"\s+content=")(")/,   `$1${siteUrl}/$2`);
+      if (coverUrl) {
+        html = html.replace(/(property="og:image"\s+content=")(")/,  `$1${coverUrl}$2`);
+        html = html.replace(/(name="twitter:image"\s+content=")(")/,  `$1${coverUrl}$2`);
+      }
+      fs.writeFileSync(indexDistPath, html);
+      console.log(`Injected OG image URLs into _site/index.html (${siteUrl})`);
+    }
+  } else if (!siteUrl) {
+    console.log('Tip: set SITE_URL env var to populate absolute og:url / og:image on the homepage.');
+  }
+
   console.log(`Build complete → _site/`);
 })();

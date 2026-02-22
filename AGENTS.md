@@ -136,6 +136,10 @@ Running `node build.js` produces a clean `_site/` folder:
    PhotoSwipe. Source-only files (`meta.json`, `about.md`) are never copied.
 5. **Manifest** — writes `_site/manifest.json` with dimensions taken from the optimised
    output files.
+6. **OG image injection** — if the `SITE_URL` environment variable is set, fills in the
+   `og:url`, `og:image`, and `twitter:image` tags in `_site/index.html` with absolute
+   URLs (site root and first collection's cover image). Without `SITE_URL` the tags are
+   left with empty `content` attributes (valid; crawlers skip blank tags).
 
 ---
 
@@ -215,6 +219,28 @@ name.
   }
 }
 ```
+
+---
+
+## Social Media Card Metadata
+
+All three HTML templates (`index.html`, `collection.html`, `about.html`) include Open Graph
+and Twitter Card `<meta>` tags.
+
+- **Homepage (`index.html`):** Static title and description. `build.js` fills in `og:url`
+  (site root) and `og:image` / `twitter:image` (first collection's cover, 1920w WebP) at
+  build time using the `SITE_URL` environment variable. Tags are left empty if `SITE_URL`
+  is not set — valid HTML; crawlers skip blank `content` attributes.
+- **About page (`about.html`):** Static title, description, and `og:url`. `og:image` is
+  left blank (no dedicated about image exists).
+- **Collection page (`collection.html`):** Base shell values only. `main.js` overwrites all
+  OG and Twitter tags at runtime via `updateCollectionMeta(collection, siteTitle)` once the
+  manifest loads, using the collection title, year, and cover image. The cover URL is made
+  absolute with `new URL(collection.cover, window.location.href).href`.
+- **`setMeta(attr, value, content)`** — helper in `main.js` that finds an existing `<meta>`
+  tag by attribute + value and updates its `content`, or creates it if absent.
+- The `SITE_URL` env var is set to `https://arsleutjes.github.io/photography-portfolio` in
+  `.github/workflows/deploy.yml`. Update it if the deployment URL changes.
 
 ---
 

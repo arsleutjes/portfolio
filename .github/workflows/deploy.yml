@@ -34,6 +34,8 @@ jobs:
 
       - name: Build site
         run: npm run build
+        env:
+          SITE_URL: https://arsleutjes.github.io/photography-portfolio
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
