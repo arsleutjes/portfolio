@@ -12,8 +12,6 @@
   <!-- Google Fonts (non-blocking) -->
   <link rel="preload" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Jost:wght@300;400;600&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Jost:wght@300;400;600&display=swap"></noscript>
-  <!-- Preconnect to CDN for DOMPurify / marked -->
-  <link rel="preconnect" href="https://cdn.jsdelivr.net">
   <link rel="stylesheet" href="css/style.css">
   <!-- Preload manifest so JS can start rendering as soon as possible -->
   <link rel="preload" href="manifest.json" as="fetch" crossorigin>
@@ -42,10 +40,6 @@
       </section>
     </main>
   </div>
-
-  <!-- marked.js for Markdown rendering + DOMPurify for sanitization -->
-  <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js" defer></script>
-  <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js" defer></script>
 
   <script src="js/main.js" defer></script>
 </body>

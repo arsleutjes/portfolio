@@ -238,19 +238,7 @@ async function renderAbout() {
     }
   }
 
-  // Content is pre-rendered at build time into #about-content; skip fetch.
-  // (Falls back to fetching about.md only when content is not already present.)
-  const content = document.getElementById('about-content');
-  if (!content || content.dataset.prerendered || content.children.length > 0) return;
-  try {
-    const res = await fetch('about.md');
-    if (!res.ok) throw new Error(`Could not load about.md (${res.status})`);
-    const text = await res.text();
-    content.innerHTML = DOMPurify.sanitize(marked.parse(text));
-  } catch (e) {
-    console.error(e);
-    content.innerHTML = '<p class="empty-state">About content not found.</p>';
-  }
+  // Content is always pre-rendered at build time into #about-content — nothing to do at runtime.
 }
 
 // ─── PhotoSwipe lightbox ───────────────────────────────────────────────────

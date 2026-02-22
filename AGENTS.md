@@ -34,8 +34,9 @@ When proposing or applying any change to this project, agents must:
 - Before completing a task, scan for dead imports, orphaned helper files, commented-out
   code blocks larger than a few lines, and build artefacts that have been accidentally
   committed — remove them.
-- `generate-manifest.js` is retained only as a legacy reference; if it diverges from
-  `build.js` behaviour it should be updated or removed entirely.
+- `generate-manifest.js` has been removed; it was a legacy standalone manifest script that
+  diverged from `build.js` (no WebP output, no srcset, wrote to `src/` instead of `_site/`).
+  Do not re-introduce it.
 
 ---
 
@@ -104,10 +105,8 @@ portfolio/
     about.md                 <- source content for the about page
     robots.txt
   build.js                   <- main build script (image optimisation + manifest + pre-render)
-  generate-manifest.js       <- legacy standalone manifest-only script (kept for reference)
   package.json               <- scripts: dev, build; dependencies: sharp, image-size, marked
   .gitignore                 <- must exclude: node_modules/, _site/
-  serve.json                 <- local dev server config (see below)
   .github/
     workflows/
       deploy.yml
@@ -210,9 +209,6 @@ name.
   }
 }
 ```
-
-`serve.json` at the repo root is kept for compatibility but the dev script serves `_site/`
-directly via `npx serve _site`.
 
 ---
 
