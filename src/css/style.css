@@ -73,6 +73,18 @@ img { display: block; max-width: 100%; }
 .site-header nav a:hover,
 .site-header nav a.active { color: #111; }
 
+@media (max-width: 540px) {
+  .site-header {
+    padding: 0 16px;
+    justify-content: space-between;
+  }
+  .site-header .logo {
+    position: static;
+    transform: none;
+    font-size: 1.05rem;
+  }
+}
+
 /* ─────────────────────────────────────────────
    Page shell
 ───────────────────────────────────────────── */
