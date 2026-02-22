@@ -4,7 +4,17 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>About</title>
+  <meta name="description" content="About Arwin Sleutjes — photographer based in the Netherlands.">
+  <!-- Preconnect to font origins -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!-- Google Fonts (non-blocking) -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Jost:wght@300;400;600&display=swap">
+  <!-- Preconnect to CDN for DOMPurify / marked -->
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
   <link rel="stylesheet" href="css/style.css">
+  <!-- Preload manifest so JS can start rendering as soon as possible -->
+  <link rel="preload" href="manifest.json" as="fetch" crossorigin>
 </head>
 <body>
 
@@ -32,10 +42,9 @@
   </div>
 
   <!-- marked.js for Markdown rendering + DOMPurify for sanitization -->
-  <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js" defer></script>
 
-  <script src="js/main.js"></script>
-  <script>renderAbout();</script>
+  <script src="js/main.js" defer></script>
 </body>
 </html>

@@ -4,9 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Portfolio</title>
+  <meta name="description" content="Photography portfolio of Arwin Sleutjes — collections of documentary, travel and street photography.">
+  <!-- Preconnect to font origins -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!-- Google Fonts (non-blocking) -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Jost:wght@300;400;600&display=swap">
   <link rel="stylesheet" href="css/style.css">
-  <!-- PhotoSwipe v5 -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/photoswipe@5/dist/photoswipe.css">
+  <!-- Preload manifest so JS can start rendering as soon as possible -->
+  <link rel="preload" href="manifest.json" as="fetch" crossorigin>
 </head>
 <body>
 
@@ -28,11 +34,6 @@
     </main>
   </div>
 
-  <!-- PhotoSwipe v5 -->
-  <script src="https://cdn.jsdelivr.net/npm/photoswipe@5/dist/umd/photoswipe.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/photoswipe@5/dist/umd/photoswipe-lightbox.umd.min.js"></script>
-
-  <script src="js/main.js"></script>
-  <script>renderHomepage();</script>
+  <script src="js/main.js" defer></script>
 </body>
 </html>

@@ -38,7 +38,7 @@ function lazyLoad(img) {
 
 // ─── Cover card (used on homepage + "you may also like") ───────────────────
 
-function buildCoverCard(collection, basePath = '') {
+function buildCoverCard(collection, basePath = '', isFirst = false) {
   const a = document.createElement('a');
   a.className = 'project-cover';
   a.href = `${basePath}collection?slug=${encodeURIComponent(collection.slug)}`;
@@ -48,8 +48,17 @@ function buildCoverCard(collection, basePath = '') {
 
   const img = document.createElement('img');
   img.alt = collection.title;
-  img.dataset.src = basePath + (collection.cover || '');
-  lazyLoad(img);
+
+  if (isFirst) {
+    // LCP image — load immediately with high priority
+    img.src = basePath + (collection.cover || '');
+    img.fetchPriority = 'high';
+    img.onload = () => img.classList.add('loaded');
+    img.onerror = () => img.classList.add('loaded');
+  } else {
+    img.dataset.src = basePath + (collection.cover || '');
+    lazyLoad(img);
+  }
 
   imageWrap.appendChild(img);
 
@@ -83,8 +92,8 @@ async function renderHomepage() {
     return;
   }
 
-  manifest.collections.forEach(col => {
-    grid.appendChild(buildCoverCard(col));
+  manifest.collections.forEach((col, idx) => {
+    grid.appendChild(buildCoverCard(col, '', idx === 0));
   });
 }
 
@@ -133,8 +142,19 @@ async function renderCollection() {
 
     const img = document.createElement('img');
     img.alt = `${collection.title} — photo ${i + 1}`;
-    img.dataset.src = photo.src;
-    lazyLoad(img);
+    img.width = photo.width;
+    img.height = photo.height;
+
+    if (i === 0) {
+      // LCP image — load immediately with high priority
+      img.src = photo.src;
+      img.fetchPriority = 'high';
+      img.onload = () => img.classList.add('loaded');
+      img.onerror = () => img.classList.add('loaded');
+    } else {
+      img.dataset.src = photo.src;
+      lazyLoad(img);
+    }
 
     item.appendChild(filler);
     item.appendChild(img);
@@ -217,3 +237,15 @@ function openLightbox(items, startIndex) {
   lightbox.init();
   lightbox.loadAndOpen(startIndex);
 }
+
+// ─── Page auto-detection ──────────────────────────────────────────────────
+
+document.addEventListener('DOMContentLoaded', () => {
+  if (document.getElementById('cover-grid')) {
+    renderHomepage();
+  } else if (document.getElementById('photo-grid')) {
+    renderCollection();
+  } else if (document.getElementById('about-content')) {
+    renderAbout();
+  }
+});

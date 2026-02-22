@@ -1,9 +1,4 @@
 /* ─────────────────────────────────────────────
-   Fonts
-───────────────────────────────────────────── */
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Jost:wght@300;400;600&display=swap');
-
-/* ─────────────────────────────────────────────
    Reset & Base
 ───────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
