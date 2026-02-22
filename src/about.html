@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>About</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="site-header">
+    <div class="logo"><a href="index.html">Arwin Sleutjes</a></div>
+    <nav>
+      <a href="index.html">Work</a>
+      <a href="about.html" class="active">About</a>
+    </nav>
+  </header>
+
+  <!-- Main content -->
+  <div class="site-wrap">
+    <main>
+      <section class="about-page">
+        <div class="about-profile">
+          <img id="about-photo" src="photos/profile.jpg" alt="Profile photo" class="about-photo">
+        </div>
+        <div id="about-content" class="about-content">
+          <!-- Populated by main.js from about.md -->
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- marked.js for Markdown rendering + DOMPurify for sanitization -->
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
+
+  <script src="js/main.js"></script>
+  <script>renderAbout();</script>
+</body>
+</html>

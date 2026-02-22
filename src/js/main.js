@@ -160,6 +160,36 @@ async function renderCollection() {
   }
 }
 
+// ─── About page ────────────────────────────────────────────────────────────
+
+async function renderAbout() {
+  const manifest = await fetchManifest();
+
+  // Update page title and logo
+  document.title = `About — ${manifest.site.title}`;
+  const logoEl = document.querySelector('.site-header .logo a');
+  if (logoEl) logoEl.textContent = manifest.site.title;
+
+  // Hide profile photo if it fails to load
+  const photo = document.getElementById('about-photo');
+  if (photo) {
+    photo.onerror = () => { photo.style.display = 'none'; };
+  }
+
+  // Fetch about.md and render with marked
+  const content = document.getElementById('about-content');
+  if (!content) return;
+  try {
+    const res = await fetch('about.md');
+    if (!res.ok) throw new Error(`Could not load about.md (${res.status})`);
+    const text = await res.text();
+    content.innerHTML = DOMPurify.sanitize(marked.parse(text));
+  } catch (e) {
+    console.error(e);
+    content.innerHTML = '<p class="empty-state">About content not found.</p>';
+  }
+}
+
 // ─── PhotoSwipe lightbox ───────────────────────────────────────────────────
 
 function openLightbox(items, startIndex) {
