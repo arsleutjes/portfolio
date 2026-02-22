@@ -30,6 +30,11 @@ const IMAGE_EXTS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif']);
 const WEBP_QUALITY = 85;
 /** Responsive widths generated for every image. */
 const RESPONSIVE_WIDTHS = [400, 800, 1200, 1920];
+/** OG image dimensions — 1200×630 is the recommended social card size (< 600 KB). */
+const OG_WIDTH   = 1200;
+const OG_HEIGHT  = 630;
+/** Lower quality keeps the OG image under WhatsApp's 600 KB limit. */
+const OG_QUALITY = 80;
 
 // ─── Site-level content/meta.json ─────────────────────────────────────────────
 
@@ -372,6 +377,10 @@ if (fs.existsSync(aboutMdPath) && fs.existsSync(aboutHtmlDistPath)) {
       const photos = [];
       const distNameOf = {};
 
+      // coverSrcFile is needed inside the loop to trigger OG image generation.
+      const coverSrcFile = meta.cover || (imageFiles[0] || null);
+      let coverOg = null;
+
       for (const f of imageFiles) {
         const srcFile = path.join(srcDir, f);
         const stem = path.basename(f, path.extname(f));
@@ -483,6 +492,35 @@ if (fs.existsSync(aboutMdPath) && fs.existsSync(aboutHtmlDistPath)) {
           }
         } // end !usedCache
 
+        // ── OG image for the cover (1200×630 centre-crop for social cards) ──
+        // Generated only for the cover file; kept under WhatsApp's 600 KB limit.
+        if (f === coverSrcFile) {
+          const ogName = `${stem}-og.webp`;
+          const ogDistFile = path.join(distDir, ogName);
+          const ogCacheFile = path.join(CACHE_DIR, yearDir, slug, ogName);
+          const ogCacheHit = cachedEntry && cachedEntry.hash === fileHash
+            && cachedEntry.ogName === ogName && fs.existsSync(ogCacheFile);
+          if (ogCacheHit) {
+            fs.copyFileSync(ogCacheFile, ogDistFile);
+            coverOg = `photos/${yearDir}/${slug}/${ogName}`;
+            console.log(`  ${f} → ${ogName} (OG, cache hit)`);
+          } else {
+            try {
+              await sharp(srcFile)
+                .resize(OG_WIDTH, OG_HEIGHT, { position: 'centre', fit: 'cover' })
+                .webp({ quality: OG_QUALITY })
+                .toFile(ogDistFile);
+              coverOg = `photos/${yearDir}/${slug}/${ogName}`;
+              ensureDir(path.join(CACHE_DIR, yearDir, slug));
+              try { fs.copyFileSync(ogDistFile, ogCacheFile); } catch { /* non-fatal */ }
+              if (cacheIndex[cacheKey]) cacheIndex[cacheKey].ogName = ogName;
+              console.log(`  ${f} → ${ogName} (OG, ${OG_WIDTH}×${OG_HEIGHT}, quality ${OG_QUALITY})`);
+            } catch (err) {
+              console.warn(`  Warning: could not generate OG image for ${f}: ${err.message}`);
+            }
+          }
+        }
+
         distNameOf[f] = fullName;
         photos.push({
           src: `photos/${yearDir}/${slug}/${fullName}`,
@@ -493,12 +531,11 @@ if (fs.existsSync(aboutMdPath) && fs.existsSync(aboutHtmlDistPath)) {
       }
 
       // Derive cover using the output filename (webp or fallback original)
-      const coverSrcFile = meta.cover || (imageFiles[0] || null);
       const coverPhoto = coverSrcFile ? photos.find(p => p.src.endsWith('/' + distNameOf[coverSrcFile])) || photos[0] : photos[0];
       const cover = coverPhoto ? coverPhoto.src : null;
       const coverSrcset = coverPhoto ? coverPhoto.srcset : null;
 
-      collections.push({ slug, title, year, order, cover, coverSrcset, photos });
+      collections.push({ slug, title, year, order, cover, coverSrcset, coverOg, photos });
     }
   }
 
@@ -538,7 +575,8 @@ if (fs.existsSync(aboutMdPath) && fs.existsSync(aboutHtmlDistPath)) {
     const indexDistPath = path.join(DIST, 'index.html');
     if (fs.existsSync(indexDistPath)) {
       let html = fs.readFileSync(indexDistPath, 'utf8');
-      const coverUrl = output[0].cover ? `${siteUrl}/${output[0].cover}` : '';
+      const ogCoverPath = output[0].coverOg || output[0].cover;
+      const coverUrl = ogCoverPath ? `${siteUrl}/${ogCoverPath}` : '';
       html = html.replace(/(property="og:url"\s+content=")(")/,   `$1${siteUrl}/$2`);
       if (coverUrl) {
         html = html.replace(/(property="og:image"\s+content=")(")/,  `$1${coverUrl}$2`);
@@ -639,8 +677,9 @@ if (fs.existsSync(aboutMdPath) && fs.existsSync(aboutHtmlDistPath)) {
           );
 
         // Bake OG / Twitter meta
-        const colDesc  = `${col.title} (${col.year}) — ${SITE_TITLE}`;
-        const coverUrl = siteUrl && col.cover ? `${siteUrl}/${col.cover}` : col.cover || '';
+        const colDesc     = `${col.title} (${col.year}) — ${SITE_TITLE}`;
+        const ogImgPath   = col.coverOg || col.cover || '';
+        const coverUrl    = siteUrl && ogImgPath ? `${siteUrl}/${ogImgPath}` : ogImgPath;
         const colUrl   = siteUrl ? `${siteUrl}/collection/${col.slug}/` : '';
         html = html
           .replace(/(property="og:title"\s+content=")[^"]*(")/,       `$1${escapeHtml(pageTitle)}$2`)
