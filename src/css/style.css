@@ -274,6 +274,61 @@ img { display: block; max-width: 100%; }
 }
 
 /* ─────────────────────────────────────────────
+   About Page
+───────────────────────────────────────────── */
+.about-page {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 64px 32px 96px;
+}
+
+.about-profile {
+  margin-bottom: 48px;
+  text-align: center;
+}
+
+.about-photo {
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: inline-block;
+  background: #f4f4f4;
+}
+
+.about-content h1,
+.about-content h2,
+.about-content h3 {
+  font-family: 'Playfair Display', serif;
+  font-weight: 400;
+  margin-top: 40px;
+  margin-bottom: 16px;
+}
+
+.about-content h1 { font-size: 2.5rem; margin-top: 0; }
+.about-content h2 { font-size: 1.5rem; }
+.about-content h3 { font-size: 1.1rem; }
+
+.about-content p {
+  line-height: 1.8;
+  margin-bottom: 20px;
+  color: #333;
+}
+
+.about-content a {
+  color: #111;
+  border-bottom: 1px solid #ddd;
+  transition: border-color 0.2s;
+}
+
+.about-content a:hover { border-bottom-color: #111; }
+
+@media (max-width: 480px) {
+  .about-page { padding: 40px 20px 64px; }
+  .about-photo { width: 140px; height: 140px; }
+}
+
+/* ─────────────────────────────────────────────
    PhotoSwipe overrides
 ───────────────────────────────────────────── */
 .pswp {
