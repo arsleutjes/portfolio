@@ -17,15 +17,15 @@ const sharp = require('sharp');
 const { marked } = require('marked');
 
 const SRC = path.join(__dirname, 'src');
-const SITE = path.join(__dirname, '_site');
+const DIST = path.join(__dirname, '_site');
 const PHOTOS_SRC = path.join(SRC, 'photos');
-const PHOTOS_SITE = path.join(SITE, 'photos');
+const PHOTOS_DIST = path.join(DIST, 'photos');
 const IMAGE_EXTS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif']);
 
 /** Maximum dimension (width or height) for optimised images. */
 const MAX_DIMENSION = 2400;
-/** JPEG quality for optimised images. */
-const JPEG_QUALITY = 85;
+/** WebP quality for optimised images. */
+const WEBP_QUALITY = 85;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -53,26 +53,26 @@ function copyDir(src, dest) {
   }
 }
 
-// ─── _site scaffold ──────────────────────────────────────────────────────────
+// ─── dist scaffold ───────────────────────────────────────────────────────────
 
 // Recreate _site/
-if (fs.existsSync(SITE)) {
-  fs.rmSync(SITE, { recursive: true, force: true });
+if (fs.existsSync(DIST)) {
+  fs.rmSync(DIST, { recursive: true, force: true });
 }
-ensureDir(SITE);
+ensureDir(DIST);
 
 // Copy static assets: HTML files, css/, js/
 for (const entry of fs.readdirSync(SRC, { withFileTypes: true })) {
   if (entry.isDirectory()) {
     // Copy css/ and js/; skip photos/ (handled separately below)
     if (entry.name === 'css' || entry.name === 'js') {
-      copyDir(path.join(SRC, entry.name), path.join(SITE, entry.name));
+      copyDir(path.join(SRC, entry.name), path.join(DIST, entry.name));
     }
   } else {
     // Copy .html files; skip about.md and manifest.json
     const ext = path.extname(entry.name).toLowerCase();
     if (ext === '.html') {
-      fs.copyFileSync(path.join(SRC, entry.name), path.join(SITE, entry.name));
+      fs.copyFileSync(path.join(SRC, entry.name), path.join(DIST, entry.name));
     }
   }
 }
@@ -80,13 +80,13 @@ for (const entry of fs.readdirSync(SRC, { withFileTypes: true })) {
 // ─── Pre-render about.md → _site/about.html ──────────────────────────────────
 
 const aboutMdPath = path.join(SRC, 'about.md');
-const aboutHtmlSitePath = path.join(SITE, 'about.html');
+const aboutHtmlDistPath = path.join(DIST, 'about.html');
 
-if (fs.existsSync(aboutMdPath) && fs.existsSync(aboutHtmlSitePath)) {
+if (fs.existsSync(aboutMdPath) && fs.existsSync(aboutHtmlDistPath)) {
   const mdText = fs.readFileSync(aboutMdPath, 'utf8');
   const renderedHtml = marked.parse(mdText);
 
-  let aboutHtml = fs.readFileSync(aboutHtmlSitePath, 'utf8');
+  let aboutHtml = fs.readFileSync(aboutHtmlDistPath, 'utf8');
   // Inject pre-rendered content into the #about-content div
   aboutHtml = aboutHtml.replace(
     /(<div[^>]*id="about-content"[^>]*>)([\s\S]*?)(<\/div>)/,
@@ -97,7 +97,7 @@ if (fs.existsSync(aboutMdPath) && fs.existsSync(aboutHtmlSitePath)) {
     /(<div[^>]*id="about-content")([^>]*>)/,
     '$1 data-prerendered="true"$2'
   );
-  fs.writeFileSync(aboutHtmlSitePath, aboutHtml);
+  fs.writeFileSync(aboutHtmlDistPath, aboutHtml);
   console.log('Pre-rendered about.md → _site/about.html');
 }
 
@@ -131,10 +131,10 @@ if (fs.existsSync(aboutMdPath) && fs.existsSync(aboutHtmlSitePath)) {
 
     for (const slug of slugDirs) {
       const srcDir = path.join(yearSrcPath, slug);
-      const siteDir = path.join(PHOTOS_SITE, yearDir, slug);
+      const distDir = path.join(PHOTOS_DIST, yearDir, slug);
       console.log(`Processing: ${yearDir}/${slug}`);
 
-      ensureDir(siteDir);
+      ensureDir(distDir);
 
       // Read meta.json (not copied to _site)
       const metaPath = path.join(srcDir, 'meta.json');
@@ -154,28 +154,32 @@ if (fs.existsSync(aboutMdPath) && fs.existsSync(aboutHtmlSitePath)) {
       const allFiles = fs.readdirSync(srcDir).sort();
       const imageFiles = allFiles.filter(f => IMAGE_EXTS.has(path.extname(f).toLowerCase()));
 
-      const coverFile = meta.cover || (imageFiles[0] || null);
-      const cover = coverFile ? `photos/${yearDir}/${slug}/${coverFile}` : null;
-
-      // Optimise each image and collect dimensions
+      // Optimise each image to WebP and collect dimensions.
+      // distNameOf maps the source filename to the actual output filename
+      // (normally <stem>.webp, but falls back to the original name on error).
       const photos = [];
+      const distNameOf = {};
+
       for (const f of imageFiles) {
         const srcFile = path.join(srcDir, f);
-        const siteFile = path.join(siteDir, f);
+        const outName = path.basename(f, path.extname(f)) + '.webp';
+        const distFile = path.join(distDir, outName);
 
-        let width, height;
+        let width, height, usedName = outName;
         try {
           const info = await sharp(srcFile)
             .resize({ width: MAX_DIMENSION, height: MAX_DIMENSION, fit: 'inside', withoutEnlargement: true })
-            .jpeg({ quality: JPEG_QUALITY })
-            .toFile(siteFile);
+            .webp({ quality: WEBP_QUALITY })
+            .toFile(distFile);
           width = info.width;
           height = info.height;
-          console.log(`  ${f} → ${width}×${height} (optimised)`);
+          console.log(`  ${f} → ${outName} ${width}×${height} (optimised)`);
         } catch (err) {
           console.warn(`  Warning: could not optimise ${f}: ${err.message}`);
-          // Fall back: copy as-is and read dimensions from source
-          fs.copyFileSync(srcFile, siteFile);
+          // Fall back: copy as-is with original extension
+          const fallbackDistFile = path.join(distDir, f);
+          fs.copyFileSync(srcFile, fallbackDistFile);
+          usedName = f;
           try {
             const buf = fs.readFileSync(srcFile);
             const dims = sizeOf.imageSize(buf);
@@ -188,8 +192,14 @@ if (fs.existsSync(aboutMdPath) && fs.existsSync(aboutHtmlSitePath)) {
           console.log(`  ${f} → ${width}×${height} (copied as-is)`);
         }
 
-        photos.push({ src: `photos/${yearDir}/${slug}/${f}`, width, height });
+        distNameOf[f] = usedName;
+        photos.push({ src: `photos/${yearDir}/${slug}/${usedName}`, width, height });
       }
+
+      // Derive cover using the output filename (webp or fallback original)
+      const coverSrcFile = meta.cover || (imageFiles[0] || null);
+      const coverName = coverSrcFile ? (distNameOf[coverSrcFile] || coverSrcFile) : null;
+      const cover = coverName ? `photos/${yearDir}/${slug}/${coverName}` : null;
 
       collections.push({ slug, title, year, order, cover, photos });
     }
@@ -211,7 +221,7 @@ if (fs.existsSync(aboutMdPath) && fs.existsSync(aboutHtmlSitePath)) {
     collections: output,
   };
 
-  fs.writeFileSync(path.join(SITE, 'manifest.json'), JSON.stringify(manifest, null, 2));
+  fs.writeFileSync(path.join(DIST, 'manifest.json'), JSON.stringify(manifest, null, 2));
   console.log(`\nWrote _site/manifest.json with ${output.length} collection(s).`);
   console.log(`Build complete → _site/`);
 })();
