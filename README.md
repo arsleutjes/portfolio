@@ -1,5 +1,8 @@
 # Photography Portfolio
 
+[![Deploy to GitHub Pages](https://github.com/arsleutjes/photography-portfolio/actions/workflows/deploy.yml/badge.svg)](https://github.com/arsleutjes/photography-portfolio/actions/workflows/deploy.yml)
+[![Live Site](https://img.shields.io/badge/Live%20Site-arsleutjes.github.io%2Fphotography--portfolio-blue)](https://arsleutjes.github.io/photography-portfolio)
+
 A static photo portfolio site.
 
 ## Local dev setup
