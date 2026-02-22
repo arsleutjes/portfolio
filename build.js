@@ -322,6 +322,13 @@ if (fs.existsSync(aboutMdPath) && fs.existsSync(aboutHtmlDistPath)) {
   if (fs.existsSync(profileSrc)) {
     fs.copyFileSync(profileSrc, path.join(DIST, 'profile.jpg'));
     console.log('Copied profile.jpg');
+    // Inject <link rel="preload"> for the profile photo LCP image into about.html.
+    if (fs.existsSync(aboutHtmlDistPath)) {
+      let aboutHtml = fs.readFileSync(aboutHtmlDistPath, 'utf8');
+      const profilePreload = '  <link rel="preload" as="image" href="profile.jpg" fetchpriority="high">';
+      aboutHtml = aboutHtml.replace('</head>', `${profilePreload}\n</head>`);
+      fs.writeFileSync(aboutHtmlDistPath, aboutHtml);
+    }
   } else {
     console.warn('Warning: content/profile.jpg not found.');
   }
@@ -609,6 +616,27 @@ if (fs.existsSync(aboutMdPath) && fs.existsSync(aboutHtmlDistPath)) {
     }
   } else if (!siteUrl) {
     console.log('Tip: set SITE_URL env var to populate absolute og:url / og:image on the homepage.');
+  }
+
+  // ─── LCP preload for homepage (non-static mode) ───────────────────────────
+  // In static mode the preload tag is injected as part of the full pre-render
+  // below.  In non-static mode main.js renders the cover grid dynamically, but
+  // build.js already knows the first collection's cover URL, so we can still
+  // inject a <link rel="preload"> into <head> to let the browser start fetching
+  // the LCP image while the JS manifest request is in flight.
+  if (!STATIC_MODE && output.length > 0) {
+    const indexDistPath = path.join(DIST, 'index.html');
+    if (fs.existsSync(indexDistPath)) {
+      const firstCol = output[0];
+      if (firstCol.cover) {
+        let html = fs.readFileSync(indexDistPath, 'utf8');
+        const coverSizes = '(max-width: 480px) 100vw, (max-width: 768px) 50vw, 33vw';
+        const preloadTag = buildImagePreloadTag(firstCol.cover, firstCol.coverSrcset, coverSizes);
+        html = html.replace('</head>', `${preloadTag}\n</head>`);
+        fs.writeFileSync(indexDistPath, html);
+        console.log('Injected LCP cover preload into _site/index.html');
+      }
+    }
   }
 
   // ─── Static pre-render (STATIC_MODE) ─────────────────────────────────────
