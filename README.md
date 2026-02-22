@@ -25,7 +25,7 @@ npm run dev        # http://localhost:3000
      "order": 1
    }
    ```
-   - **`cover`** — filename of the cover image (defaults to the first image alphabetically).
+   - **`cover`** — filename of the cover image (defaults to the first image alphabetically). The cover image is placed first in the photo grid on the collection page so it receives LCP treatment (`loading="eager"`, `fetchpriority="high"`, `<link rel="preload">`). When no cover is specified, the first image alphabetically serves this role.
    - **`order`** — numeric sort weight (omit to sort after explicitly ordered collections).
    - The **title** is always derived from the folder name (hyphens/underscores → spaces, title-cased). You can override it with an optional `title` field.
    - The **year** is always derived from the parent year folder name — no need to specify it in `meta.json`.

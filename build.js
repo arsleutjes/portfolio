@@ -535,6 +535,16 @@ if (fs.existsSync(aboutMdPath) && fs.existsSync(aboutHtmlDistPath)) {
       const cover = coverPhoto ? coverPhoto.src : null;
       const coverSrcset = coverPhoto ? coverPhoto.srcset : null;
 
+      // Ensure the cover image is first so it receives LCP treatment
+      // (loading="eager" fetchpriority="high" and <link rel="preload">).
+      if (coverPhoto && photos[0] !== coverPhoto) {
+        const idx = photos.indexOf(coverPhoto);
+        if (idx !== -1) {
+          photos.splice(idx, 1);
+          photos.unshift(coverPhoto);
+        }
+      }
+
       collections.push({ slug, title, year, order, cover, coverSrcset, coverOg, photos });
     }
   }
