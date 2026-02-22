@@ -225,7 +225,8 @@ img { display: block; max-width: 100%; }
     flex-grow: 1 !important;
     flex-basis: 100% !important;
   }
-  .photo-grid-filler { padding-bottom: 66.67% !important; }
+  /* padding-bottom is set per-image via inline style to preserve each photo's
+     actual aspect ratio — portrait photos need taller containers, not 66.67% */
 }
 
 /* ─────────────────────────────────────────────
