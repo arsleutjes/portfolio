@@ -112,6 +112,7 @@ portfolio/
           cover.jpg          <- placeholder or real image
           01.jpg
     about.md                 <- source content for the about page
+    profile.jpg              <- optional profile photo; copied to _site/ and preloaded as LCP image on the about page
   build.js                   <- main build script (image optimisation + manifest + pre-render)
   package.json               <- scripts: dev, build; dependencies: sharp, image-size, marked; devDependencies: terser, clean-css
   .gitignore                 <- must exclude: _site/, .image-cache/, node_modules/
@@ -139,7 +140,9 @@ Running `node build.js` produces a clean `_site/` folder:
    (`compress` + `mangle`, ~49% reduction on `main.js`).
 4. **About page pre-render** — parses `content/about.md` with `marked`, injects the HTML into
    `_site/about.html`'s `#about-content` div, and sets `data-prerendered="true"` on it so
-   the client-side JS skips the runtime fetch.
+   the client-side JS skips the runtime fetch. If `content/profile.jpg` exists, it is
+   copied to `_site/profile.jpg` and a `<link rel="preload" as="image" fetchpriority="high">`
+   hint is injected into `<head>` so the browser discovers the LCP profile photo immediately.
 5. **Image optimisation** — for every image under `content/photos/`, uses `sharp` to generate
    four WebP variants at 400w, 800w, 1200w, and 1920w (quality 85), writing them to
    `_site/photos/`. Before invoking sharp, `build.js` checks `.image-cache/cache-index.json`
@@ -158,7 +161,13 @@ Running `node build.js` produces a clean `_site/` folder:
    `og:url`, `og:image`, `twitter:image`, and `canonical` tags in `_site/index.html` and
    `_site/about.html` with absolute URLs derived from `SITE_URL`. Without `SITE_URL` the
    tags are left with empty `content`/`href` attributes (valid; crawlers skip blank tags).
-8. **Static pre-render** (when `content/meta.json` sets `"static": true`) — fully
+8. **LCP preload for homepage (non-static mode)** — regardless of whether `"static": true`,
+   `build.js` always knows the first collection's cover URL after processing images. When
+   static mode is **off**, a `<link rel="preload" as="image" fetchpriority="high">` for the
+   first cover is injected into `_site/index.html` so the browser can begin fetching the LCP
+   image while the JS manifest request is in flight. In static mode this preload is already
+   injected as part of the full pre-render pass (step 9).
+9. **Static pre-render** (when `content/meta.json` sets `"static": true`) — fully
    pre-renders the homepage cover grid into `_site/index.html` and generates an individual
    `_site/collection/[slug]/index.html` for every collection. Each pre-rendered page:
    - Injects `<link rel="preload" as="image" fetchpriority="high">` in `<head>` for the
