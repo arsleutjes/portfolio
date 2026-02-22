@@ -316,14 +316,13 @@ if (fs.existsSync(aboutMdPath) && fs.existsSync(aboutHtmlDistPath)) {
     process.exit(1);
   }
 
-  // Copy profile.jpg to _site/photos/.
-  ensureDir(PHOTOS_DIST);
-  const profileSrc = path.join(PHOTOS_SRC, 'profile.jpg');
+  // Copy profile.jpg to _site/ (lives next to about.md in content/).
+  const profileSrc = path.join(CONTENT, 'profile.jpg');
   if (fs.existsSync(profileSrc)) {
-    fs.copyFileSync(profileSrc, path.join(PHOTOS_DIST, 'profile.jpg'));
+    fs.copyFileSync(profileSrc, path.join(DIST, 'profile.jpg'));
     console.log('Copied profile.jpg');
   } else {
-    console.warn('Warning: content/photos/profile.jpg not found.');
+    console.warn('Warning: content/profile.jpg not found.');
   }
 
   const yearDirs = fs.readdirSync(PHOTOS_SRC, { withFileTypes: true })
