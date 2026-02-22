@@ -10,5 +10,9 @@
     "image-size": "^2.0.0",
     "marked": "^17.0.0",
     "sharp": "^0.34.0"
+  },
+  "devDependencies": {
+    "clean-css": "^5.3.3",
+    "terser": "^5.46.0"
   }
 }

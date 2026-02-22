@@ -16,6 +16,8 @@ const sizeOf = require('image-size');
 const sharp = require('sharp');
 const { marked } = require('marked');
 const crypto = require('crypto');
+const CleanCSS = require('clean-css');
+const { minify: terserMinify } = require('terser');
 
 const SRC = path.join(__dirname, 'src');
 const CONTENT = path.join(__dirname, 'content');
@@ -242,8 +244,10 @@ for (const entry of fs.readdirSync(SRC, { withFileTypes: true })) {
 
 const cssFilePath = path.join(SRC, 'css', 'style.css');
 if (fs.existsSync(cssFilePath)) {
-  const cssContent = fs.readFileSync(cssFilePath, 'utf8');
-  const inlineTag = `<style>\n${cssContent}\n</style>`;
+  const cssRaw = fs.readFileSync(cssFilePath, 'utf8');
+  const cssResult = new CleanCSS({ level: 2 }).minify(cssRaw);
+  const cssContent = cssResult.styles;
+  const inlineTag = `<style>${cssContent}</style>`;
   for (const name of ['index.html', 'collection.html', 'about.html']) {
     const distPath = path.join(DIST, name);
     if (fs.existsSync(distPath)) {
@@ -255,7 +259,8 @@ if (fs.existsSync(cssFilePath)) {
       fs.writeFileSync(distPath, html);
     }
   }
-  console.log('Inlined css/style.css into HTML files.');
+  const saving = Math.round((1 - cssContent.length / cssRaw.length) * 100);
+  console.log(`Inlined css/style.css into HTML files (minified, -${saving}%).`);
 }
 
 // ─── Pre-render about.md → _site/about.html ──────────────────────────────────
@@ -285,6 +290,22 @@ if (fs.existsSync(aboutMdPath) && fs.existsSync(aboutHtmlDistPath)) {
 // ─── Image optimisation + manifest generation ─────────────────────────────────
 
 (async () => {
+  // ─── Minify JS files in _site/js/ ─────────────────────────────────────────
+  const jsDistDir = path.join(DIST, 'js');
+  if (fs.existsSync(jsDistDir)) {
+    for (const file of fs.readdirSync(jsDistDir)) {
+      if (!file.endsWith('.js')) continue;
+      const jsPath = path.join(jsDistDir, file);
+      const jsRaw = fs.readFileSync(jsPath, 'utf8');
+      const result = await terserMinify(jsRaw, { compress: true, mangle: true });
+      if (result.code) {
+        fs.writeFileSync(jsPath, result.code);
+        const saving = Math.round((1 - result.code.length / jsRaw.length) * 100);
+        console.log(`Minified js/${file} (-${saving}%).`);
+      }
+    }
+  }
+
   if (!fs.existsSync(PHOTOS_SRC)) {
     console.error('content/photos/ directory not found.');
     process.exit(1);

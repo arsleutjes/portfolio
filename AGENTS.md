@@ -76,6 +76,8 @@ When proposing or applying any change to this project, agents must:
 | Image optimisation | **`sharp`** — generates responsive WebP variants at 400w, 800w, 1200w, and 1920w (quality 85); requires native bindings |
 | Image dimensions | `image-size` npm package — used as fallback when sharp fails |
 | Markdown rendering | `marked` npm package — used server-side at build time to pre-render `about.md` |
+| JS minification | `terser` dev-dependency — minifies `_site/js/main.js` at build time (~50% size reduction) |
+| CSS minification | `clean-css` dev-dependency — minifies the inlined stylesheet in every HTML file (~36% size reduction) |
 | Lightbox | PhotoSwipe v5 via CDN |
 | `_site/` | **Never committed** — built output; add to `.gitignore` |
 | `.image-cache/` | **Never committed** — persistent cache of processed WebP variants; add to `.gitignore` |
@@ -110,7 +112,7 @@ portfolio/
           01.jpg
     about.md                 <- source content for the about page
   build.js                   <- main build script (image optimisation + manifest + pre-render)
-  package.json               <- scripts: dev, build; dependencies: sharp, image-size, marked
+  package.json               <- scripts: dev, build; dependencies: sharp, image-size, marked; devDependencies: terser, clean-css
   .gitignore                 <- must exclude: _site/, .image-cache/, node_modules/
   .github/
     workflows/
@@ -126,14 +128,17 @@ Running `node build.js` produces a clean `_site/` folder:
 1. **Static assets** — copies `index.html`, `collection.html`, `about.html`, `robots.txt`,
    and `js/` from `src/` to `_site/`. The `css/` directory is **not** copied — its
    contents are inlined directly into each HTML file (see step 2).
-2. **CSS inlining** — reads `src/css/style.css` and replaces the
+2. **CSS inlining** — reads `src/css/style.css`, minifies it with `clean-css` (level 2,
+   ~36% reduction), and replaces the
    `<link rel="stylesheet" href="css/style.css">` tag in each copied HTML file with a
-   `<style>` block containing the full stylesheet. This eliminates the render-blocking
+   `<style>` block containing the minified stylesheet. This eliminates the render-blocking
    CSS network request chain.
-3. **About page pre-render** — parses `content/about.md` with `marked`, injects the HTML into
+3. **JS minification** — minifies every `.js` file in `_site/js/` in-place using `terser`
+   (`compress` + `mangle`, ~49% reduction on `main.js`).
+4. **About page pre-render** — parses `content/about.md` with `marked`, injects the HTML into
    `_site/about.html`'s `#about-content` div, and sets `data-prerendered="true"` on it so
    the client-side JS skips the runtime fetch.
-4. **Image optimisation** — for every image under `content/photos/`, uses `sharp` to generate
+5. **Image optimisation** — for every image under `content/photos/`, uses `sharp` to generate
    four WebP variants at 400w, 800w, 1200w, and 1920w (quality 85), writing them to
    `_site/photos/`. Before invoking sharp, `build.js` checks `.image-cache/cache-index.json`
    for a SHA-256 hash match; if the source file is unchanged and all cached variants are
@@ -141,13 +146,13 @@ Running `node build.js` produces a clean `_site/` folder:
    (skipping sharp entirely). After a successful encode the new variants are written to
    `.image-cache/` and the index is updated. Source-only files (`meta.json`, `about.md`) are
    never copied.
-5. **Manifest** — writes `_site/manifest.json` with dimensions taken from the optimised
+6. **Manifest** — writes `_site/manifest.json` with dimensions taken from the optimised
    output files. The `site.title` is read from `content/meta.json`.
-6. **OG image injection** — if the `SITE_URL` environment variable is set, fills in the
+7. **OG image injection** — if the `SITE_URL` environment variable is set, fills in the
    `og:url`, `og:image`, and `twitter:image` tags in `_site/index.html` with absolute
    URLs (site root and first collection's cover image). Without `SITE_URL` the tags are
    left with empty `content` attributes (valid; crawlers skip blank tags).
-7. **Static pre-render** (when `content/meta.json` sets `"static": true`) — fully
+8. **Static pre-render** (when `content/meta.json` sets `"static": true`) — fully
    pre-renders the homepage cover grid into `_site/index.html` and generates an individual
    `_site/collection/[slug]/index.html` for every collection. Each pre-rendered page:
    - Injects `<link rel="preload" as="image" fetchpriority="high">` in `<head>` for the
@@ -260,6 +265,10 @@ name.
     "image-size": "^2.0.0",
     "marked": "^17.0.0",
     "sharp": "^0.34.0"
+  },
+  "devDependencies": {
+    "clean-css": "^5.3.3",
+    "terser": "^5.46.0"
   }
 }
 ```
