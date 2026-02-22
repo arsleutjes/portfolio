@@ -146,6 +146,10 @@ Running `node build.js` produces a clean `_site/` folder:
    (skipping sharp entirely). After a successful encode the new variants are written to
    `.image-cache/` and the index is updated. Source-only files (`meta.json`, `about.md`) are
    never copied.
+   Additionally, for the **cover image** of each collection, a dedicated `{stem}-og.webp` is
+   generated at **1200×630 centre-crop** (quality 80) and stored alongside the other variants.
+   This OG image is sized to fit the standard social card dimensions and stays well under
+   WhatsApp's 600 KB limit.
 6. **Manifest** — writes `_site/manifest.json` with dimensions taken from the optimised
    output files. The `site.title` is read from `content/meta.json`.
 7. **OG image injection** — if the `SITE_URL` environment variable is set, fills in the
@@ -185,6 +189,7 @@ Running `node build.js` produces a clean `_site/` folder:
       "year": 2026,
       "cover": "photos/2026/example-collection/cover-1920w.webp",
       "coverSrcset": "photos/2026/example-collection/cover-400w.webp 400w, photos/2026/example-collection/cover-800w.webp 800w, photos/2026/example-collection/cover-1200w.webp 1200w, photos/2026/example-collection/cover-1920w.webp 1920w",
+      "coverOg": "photos/2026/example-collection/cover-og.webp",
       "photos": [
         {
           "src": "photos/2026/example-collection/01-1920w.webp",
@@ -201,6 +206,7 @@ Running `node build.js` produces a clean `_site/` folder:
 - Sort collections by `order` (ascending) then by `year` (descending) as fallback.
 - `width` and `height` reflect the **optimised** output dimensions (after sharp resize).
 - `srcset` on each photo and `coverSrcset` on each collection contain all generated widths for use with the HTML `srcset` attribute.
+- `coverOg` is a 1200×630 centre-cropped WebP (quality 80) generated for each collection's cover image; used exclusively in `og:image` / `twitter:image` meta tags to comply with WhatsApp's < 600 KB recommendation.
 - `year` is **always** derived from the parent year folder name (e.g. `photos/2026/`).
 - `slug` and `title` are **always** derived from the collection folder name.
 - Image paths use `.webp` extensions (or original extension if sharp failed and the file
@@ -281,17 +287,17 @@ All three HTML templates (`index.html`, `collection.html`, `about.html`) include
 and Twitter Card `<meta>` tags.
 
 - **Homepage (`index.html`):** Static title and description. `build.js` fills in `og:url`
-  (site root) and `og:image` / `twitter:image` (first collection's cover, 1920w WebP) at
-  build time using the `SITE_URL` environment variable. Tags are left empty if `SITE_URL`
+  (site root) and `og:image` / `twitter:image` (first collection's `coverOg`, 1200×630 WebP)
+  at build time using the `SITE_URL` environment variable. Tags are left empty if `SITE_URL`
   is not set — valid HTML; crawlers skip blank `content` attributes.
 - **About page (`about.html`):** Static title, description, and `og:url`. `og:image` is
   left blank (no dedicated about image exists).
 - **Collection page (`collection.html` / `_site/collection/[slug]/index.html`):** In static
-  mode, `build.js` bakes in the collection title, description, canonical URL, and cover
-  image URL at build time. In JS fallback mode (`collection.html?slug=`), `main.js`
+  mode, `build.js` bakes in the collection title, description, canonical URL, and `coverOg`
+  URL at build time. In JS fallback mode (`collection.html?slug=`), `main.js`
   overwrites all OG and Twitter tags at runtime via `updateCollectionMeta(collection, siteTitle)` once the
-  manifest loads, using the collection title, year, and cover image. The cover URL is made
-  absolute with `new URL(collection.cover, window.location.href).href`.
+  manifest loads, using the collection title, year, and `coverOg` (falling back to `cover`).
+  The URL is made absolute with `new URL(ogSrc, window.location.href).href`.
 - **`setMeta(attr, value, content)`** — helper in `main.js` that finds an existing `<meta>`
   tag by attribute + value and updates its `content`, or creates it if absent.
 - The `SITE_URL` env var is set to `https://arsleutjes.github.io/photography-portfolio` in

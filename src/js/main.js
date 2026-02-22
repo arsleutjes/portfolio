@@ -112,9 +112,8 @@ function setMeta(attr, value, content) {
 function updateCollectionMeta(collection, siteTitle) {
   const pageTitle = `${collection.title} — ${siteTitle}`;
   const description = `${collection.title} (${collection.year}) — ${siteTitle}`;
-  const imageUrl = collection.cover
-    ? new URL(collection.cover, window.location.href).href
-    : '';
+  const ogSrc = collection.coverOg || collection.cover;
+  const imageUrl = ogSrc ? new URL(ogSrc, window.location.href).href : '';
   const pageUrl = `${window.location.origin}${window.location.pathname}?slug=${encodeURIComponent(collection.slug)}`;
 
   setMeta('property', 'og:title', pageTitle);
