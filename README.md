@@ -13,7 +13,7 @@ npm run dev        # http://localhost:3000
 
 ## Adding photos
 
-1. Create a folder under `src/photos/[year]/` for the correct year (e.g. `src/photos/2026/my-collection/`).
+1. Create a folder under `content/photos/[year]/` for the correct year (e.g. `content/photos/2026/my-collection/`).
 2. Add images to that folder.
 3. Optionally add a `meta.json`:
    ```json
@@ -40,8 +40,8 @@ Deploys automatically on every push to `main` via GitHub Actions.
 
 1. **Static assets** — `index.html`, `collection.html`, `about.html`, and `js/` are copied from `src/` to `_site/`. The `css/` directory is **not** copied as a separate file — the stylesheet is inlined instead (see step 2).
 2. **CSS inlining** — `src/css/style.css` is read at build time and embedded as a `<style>` block inside each HTML file, eliminating the render-blocking CSS network request.
-3. **About page** — `src/about.md` is rendered to HTML at build time and injected directly into `_site/about.html`. The raw `.md` file is never included in `_site/`.
-4. **Image optimisation** — every source image under `src/photos/` is processed with `sharp` into four WebP variants (400w, 800w, 1200w, 1920w at quality 85) and written to `_site/photos/`. Source-only files such as `meta.json` are not copied.
+3. **About page** — `content/about.md` is rendered to HTML at build time and injected directly into `_site/about.html`. The raw `.md` file is never included in `_site/`.
+4. **Image optimisation** — every source image under `content/photos/` is processed with `sharp` into four WebP variants (400w, 800w, 1200w, 1920w at quality 85) and written to `_site/photos/`. Source-only files such as `meta.json` are not copied.
 5. **Manifest** — `_site/manifest.json` is generated with the correct photo dimensions (taken from the optimised output), so the front-end can reserve aspect-ratio space before images load.
 
 `npm run dev` chains the build step and starts a static file server (`serve`) pointed at `_site/`.

@@ -17,8 +17,9 @@ const sharp = require('sharp');
 const { marked } = require('marked');
 
 const SRC = path.join(__dirname, 'src');
+const CONTENT = path.join(__dirname, 'content');
 const DIST = path.join(__dirname, '_site');
-const PHOTOS_SRC = path.join(SRC, 'photos');
+const PHOTOS_SRC = path.join(CONTENT, 'photos');
 const PHOTOS_DIST = path.join(DIST, 'photos');
 const IMAGE_EXTS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif']);
 
@@ -99,7 +100,7 @@ if (fs.existsSync(cssFilePath)) {
 
 // ─── Pre-render about.md → _site/about.html ──────────────────────────────────
 
-const aboutMdPath = path.join(SRC, 'about.md');
+const aboutMdPath = path.join(CONTENT, 'about.md');
 const aboutHtmlDistPath = path.join(DIST, 'about.html');
 
 if (fs.existsSync(aboutMdPath) && fs.existsSync(aboutHtmlDistPath)) {
@@ -125,20 +126,18 @@ if (fs.existsSync(aboutMdPath) && fs.existsSync(aboutHtmlDistPath)) {
 
 (async () => {
   if (!fs.existsSync(PHOTOS_SRC)) {
-    console.error('src/photos/ directory not found.');
+    console.error('content/photos/ directory not found.');
     process.exit(1);
   }
 
-  // Copy root-level photo files (e.g. profile.jpg) to _site/photos/
-  // Destination filename is lowercased so references like src="photos/profile.jpg"
-  // work regardless of the source file's case (e.g. profile.JPG, Profile.jpg).
+  // Copy profile.jpg to _site/photos/.
   ensureDir(PHOTOS_DIST);
-  for (const entry of fs.readdirSync(PHOTOS_SRC, { withFileTypes: true })) {
-    if (!entry.isDirectory() && IMAGE_EXTS.has(path.extname(entry.name).toLowerCase())) {
-      const destName = entry.name.toLowerCase();
-      fs.copyFileSync(path.join(PHOTOS_SRC, entry.name), path.join(PHOTOS_DIST, destName));
-      console.log(`Copied root photo: ${entry.name}${destName !== entry.name ? ` → ${destName}` : ''}`);
-    }
+  const profileSrc = path.join(PHOTOS_SRC, 'profile.jpg');
+  if (fs.existsSync(profileSrc)) {
+    fs.copyFileSync(profileSrc, path.join(PHOTOS_DIST, 'profile.jpg'));
+    console.log('Copied profile.jpg');
+  } else {
+    console.warn('Warning: content/photos/profile.jpg not found.');
   }
 
   const yearDirs = fs.readdirSync(PHOTOS_SRC, { withFileTypes: true })
@@ -147,7 +146,7 @@ if (fs.existsSync(aboutMdPath) && fs.existsSync(aboutHtmlDistPath)) {
     .sort();
 
   if (yearDirs.length === 0) {
-    console.warn('No year subfolders found in src/photos/. Creating empty manifest.');
+    console.warn('No year subfolders found in content/photos/. Creating empty manifest.');
   }
 
   const collections = [];

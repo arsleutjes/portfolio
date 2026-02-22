@@ -3,7 +3,7 @@
 ## Task
 
 Build a static photography portfolio website. The site has no backend and no JS framework.
-Photos live in `src/photos/[year]/[slug]/`; each subfolder becomes a collection page. A
+Photos live in `content/photos/[year]/[slug]/`; each subfolder becomes a collection page. A
 Node.js build script optimises images, pre-renders the about page, and generates
 `manifest.json`. The built output in `_site/` is deployed to GitHub Pages via GitHub
 Actions.
@@ -57,7 +57,7 @@ When proposing or applying any change to this project, agents must:
   - Page header: collection title and year.
   - "You may also like" section at the bottom: up to 4 randomly chosen other collections
     using the same cover card structure as the homepage.
-- **About page (`about.html`):** Renders content from `src/about.md`. The Markdown is
+- **About page (`about.html`):** Renders content from `content/about.md`. The Markdown is
   pre-rendered to HTML at build time and injected into `_site/about.html`; the raw `.md`
   file is never served publicly.
 - **Lightbox:** Use **PhotoSwipe v5** (load from CDN). White background (`#fff`, 0.95
@@ -88,13 +88,7 @@ When proposing or applying any change to this project, agents must:
 
 ```
 portfolio/
-  src/
-    photos/
-      2026/
-        example-collection/
-          meta.json          <- see meta.json spec below
-          cover.jpg          <- placeholder or real image
-          01.jpg
+  src/                       <- site code (templates, styles, scripts)
     css/
       style.css
     js/
@@ -102,8 +96,15 @@ portfolio/
     index.html
     collection.html
     about.html               <- shell; #about-content injected at build time
-    about.md                 <- source content for the about page
     robots.txt
+  content/                   <- user-supplied content (edit this, not src/)
+    photos/
+      2026/
+        example-collection/
+          meta.json          <- see meta.json spec below
+          cover.jpg          <- placeholder or real image
+          01.jpg
+    about.md                 <- source content for the about page
   build.js                   <- main build script (image optimisation + manifest + pre-render)
   package.json               <- scripts: dev, build; dependencies: sharp, image-size, marked
   .gitignore                 <- must exclude: node_modules/, _site/
@@ -125,10 +126,10 @@ Running `node build.js` produces a clean `_site/` folder:
    `<link rel="stylesheet" href="css/style.css">` tag in each copied HTML file with a
    `<style>` block containing the full stylesheet. This eliminates the render-blocking
    CSS network request chain.
-3. **About page pre-render** — parses `src/about.md` with `marked`, injects the HTML into
+3. **About page pre-render** — parses `content/about.md` with `marked`, injects the HTML into
    `_site/about.html`'s `#about-content` div, and sets `data-prerendered="true"` on it so
    the client-side JS skips the runtime fetch.
-4. **Image optimisation** — for every image under `src/photos/`, uses `sharp` to generate
+4. **Image optimisation** — for every image under `content/photos/`, uses `sharp` to generate
    four WebP variants at 400w, 800w, 1200w, and 1920w (quality 85), writing them to
    `_site/photos/`. Each photo entry in the manifest includes a `srcset` string covering
    all generated widths. The largest variant is used as the fallback `src` and for
@@ -244,7 +245,7 @@ npm run dev   # builds _site/ then serves at http://localhost:3000
 
 ## Workflow: Adding a New Collection
 
-1. Create `src/photos/[year]/[slug]/` (e.g. `src/photos/2026/my-collection/`).
+1. Create `content/photos/[year]/[slug]/` (e.g. `content/photos/2026/my-collection/`).
 2. Add image files to that folder. The slug and title come from `[slug]`; the year from
    `[year]`.
 3. Optionally add `meta.json` with `cover`, `order`, or `title` override.
