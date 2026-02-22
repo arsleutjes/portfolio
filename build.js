@@ -130,11 +130,14 @@ if (fs.existsSync(aboutMdPath) && fs.existsSync(aboutHtmlDistPath)) {
   }
 
   // Copy root-level photo files (e.g. profile.jpg) to _site/photos/
+  // Destination filename is lowercased so references like src="photos/profile.jpg"
+  // work regardless of the source file's case (e.g. profile.JPG, Profile.jpg).
   ensureDir(PHOTOS_DIST);
   for (const entry of fs.readdirSync(PHOTOS_SRC, { withFileTypes: true })) {
     if (!entry.isDirectory() && IMAGE_EXTS.has(path.extname(entry.name).toLowerCase())) {
-      fs.copyFileSync(path.join(PHOTOS_SRC, entry.name), path.join(PHOTOS_DIST, entry.name));
-      console.log(`Copied root photo: ${entry.name}`);
+      const destName = entry.name.toLowerCase();
+      fs.copyFileSync(path.join(PHOTOS_SRC, entry.name), path.join(PHOTOS_DIST, destName));
+      console.log(`Copied root photo: ${entry.name}${destName !== entry.name ? ` → ${destName}` : ''}`);
     }
   }
 
