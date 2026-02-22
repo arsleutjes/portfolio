@@ -309,6 +309,10 @@ img { display: block; max-width: 100%; }
 
 .about-photo.loaded { opacity: 1; }
 
+.about-content {
+  text-align: center;
+}
+
 .about-content h1,
 .about-content h2,
 .about-content h3 {
