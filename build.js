@@ -22,10 +22,10 @@ const PHOTOS_SRC = path.join(SRC, 'photos');
 const PHOTOS_DIST = path.join(DIST, 'photos');
 const IMAGE_EXTS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif']);
 
-/** Maximum dimension (width or height) for optimised images. */
-const MAX_DIMENSION = 1920;
 /** WebP quality for optimised images. */
 const WEBP_QUALITY = 85;
+/** Responsive widths generated for every image. */
+const RESPONSIVE_WIDTHS = [400, 800, 1200, 1920];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -163,54 +163,90 @@ if (fs.existsSync(aboutMdPath) && fs.existsSync(aboutHtmlDistPath)) {
       const allFiles = fs.readdirSync(srcDir).sort();
       const imageFiles = allFiles.filter(f => IMAGE_EXTS.has(path.extname(f).toLowerCase()));
 
-      // Optimise each image to WebP and collect dimensions.
-      // distNameOf maps the source filename to the actual output filename
-      // (normally <stem>.webp, but falls back to the original name on error).
+      // Optimise each image to multiple WebP sizes and collect dimensions.
+      // distNameOf maps the source filename to the full-size output filename
+      // (normally <stem>-1920w.webp, but falls back to the original name on error).
       const photos = [];
       const distNameOf = {};
 
       for (const f of imageFiles) {
         const srcFile = path.join(srcDir, f);
-        const outName = path.basename(f, path.extname(f)) + '.webp';
-        const distFile = path.join(distDir, outName);
+        const stem = path.basename(f, path.extname(f));
 
-        let width, height, usedName = outName;
+        let fullWidth, fullHeight, fullName, srcsetParts = [];
+        const succeeded = [];
+
         try {
-          const info = await sharp(srcFile)
-            .resize({ width: MAX_DIMENSION, height: MAX_DIMENSION, fit: 'inside', withoutEnlargement: true })
-            .webp({ quality: WEBP_QUALITY })
-            .toFile(distFile);
-          width = info.width;
-          height = info.height;
-          console.log(`  ${f} → ${outName} ${width}×${height} (optimised)`);
+          // Read original dimensions first so we don't upscale
+          const meta = await sharp(srcFile).metadata();
+          const origWidth = meta.width;
+          const origHeight = meta.height;
+
+          for (const w of RESPONSIVE_WIDTHS) {
+            if (w > origWidth) continue; // never upscale
+            const outName = `${stem}-${w}w.webp`;
+            const distFile = path.join(distDir, outName);
+            const info = await sharp(srcFile)
+              .resize({ width: w, fit: 'inside', withoutEnlargement: true })
+              .webp({ quality: WEBP_QUALITY })
+              .toFile(distFile);
+            srcsetParts.push(`photos/${yearDir}/${slug}/${outName} ${info.width}w`);
+            succeeded.push({ name: outName, width: info.width, height: info.height });
+            console.log(`  ${f} → ${outName} ${info.width}×${info.height}`);
+          }
+
+          // If no variant was generated (tiny source image), produce one at native size
+          if (succeeded.length === 0) {
+            const outName = `${stem}.webp`;
+            const distFile = path.join(distDir, outName);
+            const info = await sharp(srcFile)
+              .webp({ quality: WEBP_QUALITY })
+              .toFile(distFile);
+            srcsetParts.push(`photos/${yearDir}/${slug}/${outName} ${info.width}w`);
+            succeeded.push({ name: outName, width: info.width, height: info.height });
+            console.log(`  ${f} → ${outName} ${info.width}×${info.height} (native size)`);
+          }
+
+          // Use the largest generated variant as the canonical src
+          const largest = succeeded[succeeded.length - 1];
+          fullName = largest.name;
+          fullWidth = largest.width;
+          fullHeight = largest.height;
         } catch (err) {
           console.warn(`  Warning: could not optimise ${f}: ${err.message}`);
           // Fall back: copy as-is with original extension
           const fallbackDistFile = path.join(distDir, f);
           fs.copyFileSync(srcFile, fallbackDistFile);
-          usedName = f;
+          fullName = f;
           try {
             const buf = fs.readFileSync(srcFile);
             const dims = sizeOf.imageSize(buf);
-            width = dims.width;
-            height = dims.height;
+            fullWidth = dims.width;
+            fullHeight = dims.height;
           } catch {
-            width = 1920;
-            height = 1080;
+            fullWidth = 1920;
+            fullHeight = 1080;
           }
-          console.log(`  ${f} → ${width}×${height} (copied as-is)`);
+          srcsetParts.push(`photos/${yearDir}/${slug}/${f} ${fullWidth}w`);
+          console.log(`  ${f} → ${fullWidth}×${fullHeight} (copied as-is)`);
         }
 
-        distNameOf[f] = usedName;
-        photos.push({ src: `photos/${yearDir}/${slug}/${usedName}`, width, height });
+        distNameOf[f] = fullName;
+        photos.push({
+          src: `photos/${yearDir}/${slug}/${fullName}`,
+          srcset: srcsetParts.join(', '),
+          width: fullWidth,
+          height: fullHeight,
+        });
       }
 
       // Derive cover using the output filename (webp or fallback original)
       const coverSrcFile = meta.cover || (imageFiles[0] || null);
-      const coverName = coverSrcFile ? (distNameOf[coverSrcFile] || coverSrcFile) : null;
-      const cover = coverName ? `photos/${yearDir}/${slug}/${coverName}` : null;
+      const coverPhoto = coverSrcFile ? photos.find(p => p.src.endsWith('/' + distNameOf[coverSrcFile])) || photos[0] : photos[0];
+      const cover = coverPhoto ? coverPhoto.src : null;
+      const coverSrcset = coverPhoto ? coverPhoto.srcset : null;
 
-      collections.push({ slug, title, year, order, cover, photos });
+      collections.push({ slug, title, year, order, cover, coverSrcset, photos });
     }
   }
 

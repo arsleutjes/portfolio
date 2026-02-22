@@ -46,3 +46,10 @@ Deploys automatically on every push to `main` via GitHub Actions.
 `npm run dev` chains the build step and starts a static file server (`serve`) pointed at `_site/`.
 
 The `_site/` folder is listed in `.gitignore` and is never committed — it is regenerated from scratch on every build.
+
+## Agent / AI guidelines
+
+When using AI agents or automated tooling to modify this project, agents must follow the rules in [`AGENTS.md`](AGENTS.md). Key requirements:
+
+- **Update docs** — every change must be accompanied by corresponding updates to `README.md` and `AGENTS.md` so both files stay accurate.
+- **Remove stale code** — any files, functions, CSS rules, or HTML elements that become unused after a change must be deleted rather than left in place.

@@ -25,6 +25,8 @@ const observer = new IntersectionObserver((entries) => {
     const img = entry.target;
     const src = img.dataset.src;
     if (!src) return;
+    // Apply srcset/sizes before src so the browser picks the right resource
+    if (img.dataset.srcset) { img.srcset = img.dataset.srcset; img.sizes = img.dataset.sizes || '100vw'; }
     img.src = src;
     img.onload = () => img.classList.add('loaded');
     img.onerror = () => img.classList.add('loaded'); // still show slot
@@ -49,14 +51,23 @@ function buildCoverCard(collection, basePath = '', isFirst = false) {
   const img = document.createElement('img');
   img.alt = collection.title;
 
+  const coverSrc = basePath + (collection.cover || '');
+  const coverSrcset = collection.coverSrcset
+    ? collection.coverSrcset.split(', ').map(p => basePath + p).join(', ')
+    : null;
+  // Cover cards: 3-col desktop → 2-col tablet → 1-col mobile
+  const coverSizes = '(max-width: 480px) 100vw, (max-width: 768px) 50vw, 33vw';
+
   if (isFirst) {
     // LCP image — load immediately with high priority
-    img.src = basePath + (collection.cover || '');
+    img.src = coverSrc;
+    if (coverSrcset) { img.srcset = coverSrcset; img.sizes = coverSizes; }
     img.fetchPriority = 'high';
     img.onload = () => img.classList.add('loaded');
     img.onerror = () => img.classList.add('loaded');
   } else {
-    img.dataset.src = basePath + (collection.cover || '');
+    img.dataset.src = coverSrc;
+    if (coverSrcset) { img.dataset.srcset = coverSrcset; img.dataset.sizes = coverSizes; }
     lazyLoad(img);
   }
 
@@ -158,14 +169,19 @@ async function renderCollection() {
     img.width = photo.width;
     img.height = photo.height;
 
+    // Gallery grid: justified rows, typically 33–100vw per image
+    const photoSizes = '(max-width: 500px) 100vw, (max-width: 1200px) 50vw, 800px';
+
     if (i === 0) {
       // LCP image — load immediately with high priority
       img.src = photo.src;
+      if (photo.srcset) { img.srcset = photo.srcset; img.sizes = photoSizes; }
       img.fetchPriority = 'high';
       img.onload = () => img.classList.add('loaded');
       img.onerror = () => img.classList.add('loaded');
     } else {
       img.dataset.src = photo.src;
+      if (photo.srcset) { img.dataset.srcset = photo.srcset; img.dataset.sizes = photoSizes; }
       lazyLoad(img);
     }
 
