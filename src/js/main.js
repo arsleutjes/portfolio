@@ -176,9 +176,10 @@ async function renderAbout() {
     photo.onerror = () => { photo.style.display = 'none'; };
   }
 
-  // Fetch about.md and render with marked
+  // Content is pre-rendered at build time into #about-content; skip fetch.
+  // (Falls back to fetching about.md only when content is not already present.)
   const content = document.getElementById('about-content');
-  if (!content) return;
+  if (!content || content.dataset.prerendered || content.children.length > 0) return;
   try {
     const res = await fetch('about.md');
     if (!res.ok) throw new Error(`Could not load about.md (${res.status})`);

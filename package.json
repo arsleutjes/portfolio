@@ -3,10 +3,12 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "build": "node generate-manifest.js",
-    "dev": "node generate-manifest.js && npx serve src"
+    "build": "node build.js",
+    "dev": "node build.js && npx serve _site"
   },
-  "devDependencies": {
-    "image-size": "^2.0.0"
+  "dependencies": {
+    "image-size": "^2.0.0",
+    "marked": "^17.0.0",
+    "sharp": "^0.34.0"
   }
 }
