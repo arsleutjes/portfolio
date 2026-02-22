@@ -1,2 +1,3 @@
 _site/
+.image-cache/
 node_modules/

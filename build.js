@@ -15,6 +15,7 @@ const path = require('path');
 const sizeOf = require('image-size');
 const sharp = require('sharp');
 const { marked } = require('marked');
+const crypto = require('crypto');
 
 const SRC = path.join(__dirname, 'src');
 const CONTENT = path.join(__dirname, 'content');
@@ -28,6 +29,13 @@ const WEBP_QUALITY = 85;
 /** Responsive widths generated for every image. */
 const RESPONSIVE_WIDTHS = [400, 800, 1200, 1920];
 
+/**
+ * Persistent cache directory: stores processed WebP variants so unchanged
+ * images are not re-encoded on every build.
+ */
+const CACHE_DIR = path.join(__dirname, '.image-cache');
+const CACHE_INDEX_PATH = path.join(CACHE_DIR, 'cache-index.json');
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function prettifySlug(slug) {
@@ -38,6 +46,11 @@ function prettifySlug(slug) {
 
 function ensureDir(dir) {
   fs.mkdirSync(dir, { recursive: true });
+}
+
+/** Returns the SHA-256 hex digest of a file's contents. */
+function hashFile(filePath) {
+  return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
 }
 
 /** Recursively copy a directory (files only, no subdirectory filtering). */
@@ -51,6 +64,18 @@ function copyDir(src, dest) {
     } else {
       fs.copyFileSync(srcPath, destPath);
     }
+  }
+}
+
+// ─── Load persistent image cache index ─────────────────────────────────────
+
+let cacheIndex = {};
+if (fs.existsSync(CACHE_INDEX_PATH)) {
+  try {
+    cacheIndex = JSON.parse(fs.readFileSync(CACHE_INDEX_PATH, 'utf8'));
+    console.log(`Loaded image cache index (${Object.keys(cacheIndex).length} entr(ies)).`);
+  } catch {
+    console.warn('Warning: could not read .image-cache/cache-index.json; all images will be rebuilt.');
   }
 }
 
@@ -198,60 +223,109 @@ if (fs.existsSync(aboutMdPath) && fs.existsSync(aboutHtmlDistPath)) {
         let fullWidth, fullHeight, fullName, srcsetParts = [];
         const succeeded = [];
 
-        try {
-          // Read original dimensions first so we don't upscale
-          const meta = await sharp(srcFile).metadata();
-          const origWidth = meta.width;
-          const origHeight = meta.height;
-
-          for (const w of RESPONSIVE_WIDTHS) {
-            if (w > origWidth) continue; // never upscale
-            const outName = `${stem}-${w}w.webp`;
-            const distFile = path.join(distDir, outName);
-            const info = await sharp(srcFile)
-              .resize({ width: w, fit: 'inside', withoutEnlargement: true })
-              .webp({ quality: WEBP_QUALITY })
-              .toFile(distFile);
-            srcsetParts.push(`photos/${yearDir}/${slug}/${outName} ${info.width}w`);
-            succeeded.push({ name: outName, width: info.width, height: info.height });
-            console.log(`  ${f} → ${outName} ${info.width}×${info.height}`);
+        // ─── Image cache check ───────────────────────────────────────────────
+        const cacheKey = `${yearDir}/${slug}/${f}`;
+        const fileHash = hashFile(srcFile);
+        let usedCache = false;
+        const cachedEntry = cacheIndex[cacheKey];
+        if (cachedEntry && cachedEntry.hash === fileHash) {
+          const cacheFiles = cachedEntry.files || [];
+          const allPresent = cacheFiles.length > 0 &&
+            cacheFiles.every(name => fs.existsSync(path.join(CACHE_DIR, yearDir, slug, name)));
+          if (allPresent) {
+            for (const name of cacheFiles) {
+              fs.copyFileSync(
+                path.join(CACHE_DIR, yearDir, slug, name),
+                path.join(distDir, name)
+              );
+            }
+            srcsetParts = cachedEntry.srcsetParts;
+            fullName   = cachedEntry.fullName;
+            fullWidth  = cachedEntry.fullWidth;
+            fullHeight = cachedEntry.fullHeight;
+            usedCache  = true;
+            console.log(`  ${f} → cache hit (${cacheFiles.length} variant(s) restored)`);
           }
-
-          // If no variant was generated (tiny source image), produce one at native size
-          if (succeeded.length === 0) {
-            const outName = `${stem}.webp`;
-            const distFile = path.join(distDir, outName);
-            const info = await sharp(srcFile)
-              .webp({ quality: WEBP_QUALITY })
-              .toFile(distFile);
-            srcsetParts.push(`photos/${yearDir}/${slug}/${outName} ${info.width}w`);
-            succeeded.push({ name: outName, width: info.width, height: info.height });
-            console.log(`  ${f} → ${outName} ${info.width}×${info.height} (native size)`);
-          }
-
-          // Use the largest generated variant as the canonical src
-          const largest = succeeded[succeeded.length - 1];
-          fullName = largest.name;
-          fullWidth = largest.width;
-          fullHeight = largest.height;
-        } catch (err) {
-          console.warn(`  Warning: could not optimise ${f}: ${err.message}`);
-          // Fall back: copy as-is with original extension
-          const fallbackDistFile = path.join(distDir, f);
-          fs.copyFileSync(srcFile, fallbackDistFile);
-          fullName = f;
-          try {
-            const buf = fs.readFileSync(srcFile);
-            const dims = sizeOf.imageSize(buf);
-            fullWidth = dims.width;
-            fullHeight = dims.height;
-          } catch {
-            fullWidth = 1920;
-            fullHeight = 1080;
-          }
-          srcsetParts.push(`photos/${yearDir}/${slug}/${f} ${fullWidth}w`);
-          console.log(`  ${f} → ${fullWidth}×${fullHeight} (copied as-is)`);
         }
+
+        if (!usedCache) {
+          try {
+            // Read original dimensions first so we don't upscale
+            const meta = await sharp(srcFile).metadata();
+            const origWidth = meta.width;
+            const origHeight = meta.height;
+
+            for (const w of RESPONSIVE_WIDTHS) {
+              if (w > origWidth) continue; // never upscale
+              const outName = `${stem}-${w}w.webp`;
+              const distFile = path.join(distDir, outName);
+              const info = await sharp(srcFile)
+                .resize({ width: w, fit: 'inside', withoutEnlargement: true })
+                .webp({ quality: WEBP_QUALITY })
+                .toFile(distFile);
+              srcsetParts.push(`photos/${yearDir}/${slug}/${outName} ${info.width}w`);
+              succeeded.push({ name: outName, width: info.width, height: info.height });
+              console.log(`  ${f} → ${outName} ${info.width}×${info.height}`);
+            }
+
+            // If no variant was generated (tiny source image), produce one at native size
+            if (succeeded.length === 0) {
+              const outName = `${stem}.webp`;
+              const distFile = path.join(distDir, outName);
+              const info = await sharp(srcFile)
+                .webp({ quality: WEBP_QUALITY })
+                .toFile(distFile);
+              srcsetParts.push(`photos/${yearDir}/${slug}/${outName} ${info.width}w`);
+              succeeded.push({ name: outName, width: info.width, height: info.height });
+              console.log(`  ${f} → ${outName} ${info.width}×${info.height} (native size)`);
+            }
+
+            // Use the largest generated variant as the canonical src
+            const largest = succeeded[succeeded.length - 1];
+            fullName = largest.name;
+            fullWidth = largest.width;
+            fullHeight = largest.height;
+          } catch (err) {
+            console.warn(`  Warning: could not optimise ${f}: ${err.message}`);
+            // Fall back: copy as-is with original extension
+            const fallbackDistFile = path.join(distDir, f);
+            fs.copyFileSync(srcFile, fallbackDistFile);
+            fullName = f;
+            try {
+              const buf = fs.readFileSync(srcFile);
+              const dims = sizeOf.imageSize(buf);
+              fullWidth = dims.width;
+              fullHeight = dims.height;
+            } catch {
+              fullWidth = 1920;
+              fullHeight = 1080;
+            }
+            srcsetParts.push(`photos/${yearDir}/${slug}/${f} ${fullWidth}w`);
+            console.log(`  ${f} → ${fullWidth}×${fullHeight} (copied as-is)`);
+          }
+
+          // ─── Save processed variants to .image-cache/ ──────────────────────
+          const cachedFiles = succeeded.length > 0
+            ? succeeded.map(v => v.name)
+            : (fullName ? [fullName] : []);
+          if (cachedFiles.length > 0) {
+            const cacheSubDir = path.join(CACHE_DIR, yearDir, slug);
+            ensureDir(cacheSubDir);
+            for (const name of cachedFiles) {
+              try {
+                fs.copyFileSync(path.join(distDir, name), path.join(cacheSubDir, name));
+              } catch { /* non-fatal: cache write failure must not break the build */ }
+            }
+            cacheIndex[cacheKey] = {
+              hash: fileHash,
+              files: cachedFiles,
+              srcsetParts: [...srcsetParts],
+              fullName,
+              fullWidth,
+              fullHeight,
+            };
+          }
+        } // end !usedCache
 
         distNameOf[f] = fullName;
         photos.push({
@@ -290,6 +364,15 @@ if (fs.existsSync(aboutMdPath) && fs.existsSync(aboutHtmlDistPath)) {
 
   fs.writeFileSync(path.join(DIST, 'manifest.json'), JSON.stringify(manifest, null, 2));
   console.log(`\nWrote _site/manifest.json with ${output.length} collection(s).`);
+
+  // ─── Persist updated image cache index ─────────────────────────────────────
+  try {
+    ensureDir(CACHE_DIR);
+    fs.writeFileSync(CACHE_INDEX_PATH, JSON.stringify(cacheIndex, null, 2));
+    console.log(`Wrote .image-cache/cache-index.json (${Object.keys(cacheIndex).length} entr(ies)).`);
+  } catch (err) {
+    console.warn(`Warning: could not write image cache index: ${err.message}`);
+  }
 
   // ─── Inject absolute OG URLs into _site/index.html ───────────────────────
   // og:image and og:url require absolute URLs; fill them in at build time

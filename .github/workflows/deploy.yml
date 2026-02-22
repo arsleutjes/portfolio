@@ -29,6 +29,14 @@ jobs:
         with:
           node-version: 22
 
+      - name: Restore image cache
+        uses: actions/cache@v4
+        with:
+          path: .image-cache
+          key: image-cache-${{ hashFiles('content/photos/**') }}
+          restore-keys: |
+            image-cache-
+
       - name: Install dependencies
         run: npm ci
 

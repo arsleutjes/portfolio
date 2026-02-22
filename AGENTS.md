@@ -77,6 +77,7 @@ When proposing or applying any change to this project, agents must:
 | Markdown rendering | `marked` npm package — used server-side at build time to pre-render `about.md` |
 | Lightbox | PhotoSwipe v5 via CDN |
 | `_site/` | **Never committed** — built output; add to `.gitignore` |
+| `.image-cache/` | **Never committed** — persistent cache of processed WebP variants; add to `.gitignore` |
 | `manifest.json` | Written to `_site/manifest.json` at build time; never committed |
 | Routing | `collection.html?slug=` query param — no redirect rules needed |
 | Hosting | GitHub Pages via GitHub Actions |
@@ -107,7 +108,7 @@ portfolio/
     about.md                 <- source content for the about page
   build.js                   <- main build script (image optimisation + manifest + pre-render)
   package.json               <- scripts: dev, build; dependencies: sharp, image-size, marked
-  .gitignore                 <- must exclude: node_modules/, _site/
+  .gitignore                 <- must exclude: _site/, .image-cache/, node_modules/
   .github/
     workflows/
       deploy.yml
@@ -131,9 +132,12 @@ Running `node build.js` produces a clean `_site/` folder:
    the client-side JS skips the runtime fetch.
 4. **Image optimisation** — for every image under `content/photos/`, uses `sharp` to generate
    four WebP variants at 400w, 800w, 1200w, and 1920w (quality 85), writing them to
-   `_site/photos/`. Each photo entry in the manifest includes a `srcset` string covering
-   all generated widths. The largest variant is used as the fallback `src` and for
-   PhotoSwipe. Source-only files (`meta.json`, `about.md`) are never copied.
+   `_site/photos/`. Before invoking sharp, `build.js` checks `.image-cache/cache-index.json`
+   for a SHA-256 hash match; if the source file is unchanged and all cached variants are
+   present in `.image-cache/`, the cached WebP files are copied to `_site/photos/` directly
+   (skipping sharp entirely). After a successful encode the new variants are written to
+   `.image-cache/` and the index is updated. Source-only files (`meta.json`, `about.md`) are
+   never copied.
 5. **Manifest** — writes `_site/manifest.json` with dimensions taken from the optimised
    output files.
 6. **OG image injection** — if the `SITE_URL` environment variable is set, fills in the
@@ -250,11 +254,13 @@ On every push to `main`, the workflow must:
 
 1. Checkout the repository.
 2. Set up Node 22 (use `actions/setup-node@v4`).
-3. Run `npm ci`.
-4. Run `npm run build` to produce `_site/`.
-5. Upload `_site/` as a GitHub Pages artifact (use `actions/upload-pages-artifact@v3` —
+3. Restore `.image-cache/` from the GitHub Actions cache (use `actions/cache@v4`, key
+   `image-cache-${{ hashFiles('content/photos/**') }}` with restore-key `image-cache-`).
+4. Run `npm ci`.
+5. Run `npm run build` to produce `_site/`.
+6. Upload `_site/` as a GitHub Pages artifact (use `actions/upload-pages-artifact@v3` —
    its default path is `_site/`, so no explicit `path:` argument is needed).
-6. Deploy to GitHub Pages (use `actions/deploy-pages@v4`).
+7. Deploy to GitHub Pages (use `actions/deploy-pages@v4`).
 
 Configure the workflow with `pages: write` and `id-token: write` permissions.
 
