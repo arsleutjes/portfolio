@@ -1,0 +1,12 @@
+{
+  "name": "portfolio",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "build": "node generate-manifest.js",
+    "dev": "node generate-manifest.js && npx serve src"
+  },
+  "devDependencies": {
+    "image-size": "^2.0.0"
+  }
+}

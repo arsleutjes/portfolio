@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Collection</title>
+  <link rel="stylesheet" href="css/style.css">
+  <!-- PhotoSwipe v5 -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/photoswipe@5/dist/photoswipe.css">
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="site-header">
+    <div class="logo"><a href="index.html">Arwin Sleutjes</a></div>
+    <nav>
+      <a href="index.html">Work</a>
+    </nav>
+  </header>
+
+  <!-- Main content -->
+  <div class="site-wrap">
+    <main>
+
+      <!-- Collection header -->
+      <section class="page-header">
+        <h1 id="page-title"></h1>
+        <div id="page-year" class="page-year"></div>
+      </section>
+
+      <!-- Justified photo grid -->
+      <section id="photo-grid" class="photo-grid">
+        <!-- Populated by main.js -->
+      </section>
+
+      <!-- You may also like -->
+      <section id="also-like" class="also-like" style="display:none">
+        <h2>You may also like</h2>
+        <div id="also-like-grid" class="project-covers">
+          <!-- Populated by main.js -->
+        </div>
+      </section>
+
+      <!-- Back to top -->
+      <div class="back-to-top">
+        <a href="#">&#8593;&nbsp; Back to Top</a>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- PhotoSwipe v5 -->
+  <script src="https://cdn.jsdelivr.net/npm/photoswipe@5/dist/umd/photoswipe.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/photoswipe@5/dist/umd/photoswipe-lightbox.umd.min.js"></script>
+
+  <script src="js/main.js"></script>
+  <script>renderCollection();</script>
+</body>
+</html>
