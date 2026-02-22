@@ -119,16 +119,21 @@ portfolio/
 Running `node build.js` produces a clean `_site/` folder:
 
 1. **Static assets** — copies `index.html`, `collection.html`, `about.html`, `robots.txt`,
-   `css/`, and `js/` from `src/` to `_site/`.
-2. **About page pre-render** — parses `src/about.md` with `marked`, injects the HTML into
+   and `js/` from `src/` to `_site/`. The `css/` directory is **not** copied — its
+   contents are inlined directly into each HTML file (see step 2).
+2. **CSS inlining** — reads `src/css/style.css` and replaces the
+   `<link rel="stylesheet" href="css/style.css">` tag in each copied HTML file with a
+   `<style>` block containing the full stylesheet. This eliminates the render-blocking
+   CSS network request chain.
+3. **About page pre-render** — parses `src/about.md` with `marked`, injects the HTML into
    `_site/about.html`'s `#about-content` div, and sets `data-prerendered="true"` on it so
    the client-side JS skips the runtime fetch.
-3. **Image optimisation** — for every image under `src/photos/`, uses `sharp` to generate
+4. **Image optimisation** — for every image under `src/photos/`, uses `sharp` to generate
    four WebP variants at 400w, 800w, 1200w, and 1920w (quality 85), writing them to
    `_site/photos/`. Each photo entry in the manifest includes a `srcset` string covering
    all generated widths. The largest variant is used as the fallback `src` and for
    PhotoSwipe. Source-only files (`meta.json`, `about.md`) are never copied.
-4. **Manifest** — writes `_site/manifest.json` with dimensions taken from the optimised
+5. **Manifest** — writes `_site/manifest.json` with dimensions taken from the optimised
    output files.
 
 ---

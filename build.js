@@ -61,11 +61,11 @@ if (fs.existsSync(DIST)) {
 }
 ensureDir(DIST);
 
-// Copy static assets: HTML files, css/, js/
+// Copy static assets: HTML files, js/
 for (const entry of fs.readdirSync(SRC, { withFileTypes: true })) {
   if (entry.isDirectory()) {
-    // Copy css/ and js/; skip photos/ (handled separately below)
-    if (entry.name === 'css' || entry.name === 'js') {
+    // Copy js/ only; css/ is inlined into HTML at build time
+    if (entry.name === 'js') {
       copyDir(path.join(SRC, entry.name), path.join(DIST, entry.name));
     }
   } else {
@@ -75,6 +75,26 @@ for (const entry of fs.readdirSync(SRC, { withFileTypes: true })) {
       fs.copyFileSync(path.join(SRC, entry.name), path.join(DIST, entry.name));
     }
   }
+}
+
+// ─── Inline css/style.css into each HTML file ───────────────────────────────
+
+const cssFilePath = path.join(SRC, 'css', 'style.css');
+if (fs.existsSync(cssFilePath)) {
+  const cssContent = fs.readFileSync(cssFilePath, 'utf8');
+  const inlineTag = `<style>\n${cssContent}\n</style>`;
+  for (const name of ['index.html', 'collection.html', 'about.html']) {
+    const distPath = path.join(DIST, name);
+    if (fs.existsSync(distPath)) {
+      let html = fs.readFileSync(distPath, 'utf8');
+      html = html.replace(
+        /<link\s+rel="stylesheet"\s+href="css\/style\.css">/,
+        inlineTag
+      );
+      fs.writeFileSync(distPath, html);
+    }
+  }
+  console.log('Inlined css/style.css into HTML files.');
 }
 
 // ─── Pre-render about.md → _site/about.html ──────────────────────────────────
