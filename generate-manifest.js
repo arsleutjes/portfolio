@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 /**
  * generate-manifest.js
- * Scans photos/ subdirectories and writes manifest.json.
+ * Scans photos/[year]/[slug]/ and writes manifest.json.
+ * - year  → derived from the year directory name (numeric folder)
+ * - slug  → derived from the collection directory name
+ * - title → prettified slug; can be overridden in meta.json
  * Run: node generate-manifest.js  (or: npm run build)
  */
 
@@ -31,57 +34,70 @@ function getImageDimensions(filePath) {
 }
 
 if (!fs.existsSync(PHOTOS_DIR)) {
-  console.error('photos/ directory not found. Create it and add collection subfolders.');
+  console.error('photos/ directory not found. Create it and add year subfolders.');
   process.exit(1);
 }
 
-const collectionDirs = fs.readdirSync(PHOTOS_DIR, { withFileTypes: true })
-  .filter(d => d.isDirectory())
+// Scan for year directories (numeric folder names)
+const yearDirs = fs.readdirSync(PHOTOS_DIR, { withFileTypes: true })
+  .filter(d => d.isDirectory() && /^\d{4}$/.test(d.name))
   .map(d => d.name)
   .sort();
 
-if (collectionDirs.length === 0) {
-  console.warn('No collection subfolders found in photos/. Creating empty manifest.');
+if (yearDirs.length === 0) {
+  console.warn('No year subfolders found in photos/. Creating empty manifest.');
 }
 
-const collections = collectionDirs.map(slug => {
-  const dir = path.join(PHOTOS_DIR, slug);
-  console.log(`Processing: ${slug}`);
+const collections = [];
 
-  // Read meta.json if it exists
-  const metaPath = path.join(dir, 'meta.json');
-  let meta = {};
-  if (fs.existsSync(metaPath)) {
-    try {
-      meta = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
-    } catch (e) {
-      console.warn(`  Warning: could not parse meta.json in ${slug}`);
+for (const yearDir of yearDirs) {
+  const year = parseInt(yearDir, 10);
+  const yearPath = path.join(PHOTOS_DIR, yearDir);
+
+  const slugDirs = fs.readdirSync(yearPath, { withFileTypes: true })
+    .filter(d => d.isDirectory())
+    .map(d => d.name)
+    .sort();
+
+  for (const slug of slugDirs) {
+    const dir = path.join(yearPath, slug);
+    console.log(`Processing: ${yearDir}/${slug}`);
+
+    // Read meta.json if it exists
+    // Supported fields: title (override), cover (filename), order (sort weight)
+    // year and slug are always derived from the folder structure
+    const metaPath = path.join(dir, 'meta.json');
+    let meta = {};
+    if (fs.existsSync(metaPath)) {
+      try {
+        meta = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
+      } catch (e) {
+        console.warn(`  Warning: could not parse meta.json in ${yearDir}/${slug}`);
+      }
     }
-  }
 
-  const title = meta.title || prettifySlug(slug);
-  const year = meta.year || new Date().getFullYear();
-  const order = meta.order ?? null;
+    const title = meta.title || prettifySlug(slug);
+    const order = meta.order ?? null;
 
-  // Find all image files
-  const allFiles = fs.readdirSync(dir).sort();
-  const imageFiles = allFiles.filter(f => IMAGE_EXTS.has(path.extname(f).toLowerCase()));
+    // Find all image files
+    const allFiles = fs.readdirSync(dir).sort();
+    const imageFiles = allFiles.filter(f => IMAGE_EXTS.has(path.extname(f).toLowerCase()));
 
-  const cover = meta.cover
-    ? `photos/${slug}/${meta.cover}`
-    : (imageFiles[0] ? `photos/${slug}/${imageFiles[0]}` : null);
+    const cover = meta.cover
+      ? `photos/${yearDir}/${slug}/${meta.cover}`
+      : (imageFiles[0] ? `photos/${yearDir}/${slug}/${imageFiles[0]}` : null);
 
-  // All images become the gallery
-  const photos = imageFiles
-    .map(f => {
-      const src = `photos/${slug}/${f}`;
+    // All images become the gallery
+    const photos = imageFiles.map(f => {
+      const src = `photos/${yearDir}/${slug}/${f}`;
       const dims = getImageDimensions(path.join(dir, f));
       console.log(`  ${f} → ${dims.width}×${dims.height}`);
       return { src, width: dims.width, height: dims.height };
     });
 
-  return { slug, title, year, order, cover, photos };
-});
+    collections.push({ slug, title, year, order, cover, photos });
+  }
+}
 
 // Sort by order field (if set), then by year descending, then alphabetically
 collections.sort((a, b) => {

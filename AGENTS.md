@@ -59,10 +59,11 @@ Create exactly this structure (replace `[your-name]` with the site owner's name)
 portfolio/
   src/
     photos/
-      example-collection/
-        meta.json          <- see meta.json spec below
-        cover.jpg          <- placeholder or real image
-        01.jpg
+      2026/
+        example-collection/
+          meta.json          <- see meta.json spec below
+          cover.jpg          <- placeholder or real image
+          01.jpg
     css/
       style.css
     js/
@@ -94,9 +95,9 @@ portfolio/
       "slug": "example-collection",
       "title": "Example Collection",
       "year": 2026,
-      "cover": "photos/example-collection/cover.jpg",
+      "cover": "photos/2026/example-collection/cover.jpg",
       "photos": [
-        { "src": "photos/example-collection/01.jpg", "width": 1920, "height": 1279 }
+        { "src": "photos/2026/example-collection/01.jpg", "width": 1920, "height": 1279 }
       ]
     }
   ]
@@ -106,26 +107,29 @@ portfolio/
 - Sort collections by `order` (ascending) then by `year` (descending) as fallback.
 - `width` and `height` are required for the justified grid and PhotoSwipe. Read them with
   the `image-size` package.
+- `year` is **always** derived from the parent year folder name (e.g. `photos/2026/`).
+- `slug` and `title` are **always** derived from the collection folder name.
 
 ---
 
 ## meta.json Fields
 
-Place a `meta.json` in each collection folder:
+Place an optional `meta.json` in each collection folder:
 
 ```json
 {
-  "title": "My Collection",
-  "year": 2026,
+  "cover": "DSC_001.jpg",
   "order": 1
 }
 ```
 
 | Field | Type | Required | Default |
 |---|---|---|---|
-| `title` | string | No | Prettified folder name (hyphens -> spaces, title-cased) |
-| `year` | number | No | Current year |
+| `title` | string | No | Prettified folder name (hyphens → spaces, title-cased) |
+| `cover` | string | No | First image file alphabetically |
 | `order` | number | No | Omitted collections sort after those with an explicit order |
+
+`year` is no longer a valid `meta.json` field — it is always read from the parent year folder.
 
 ---
 
@@ -191,10 +195,11 @@ npm run dev
 
 ## Workflow: Adding a New Collection (document in README.md)
 
-1. Create `src/photos/[slug]/` with photo files and a `meta.json`.
-2. Name one photo `cover.jpg` — it will appear as the homepage card image.
-3. Run `npm run dev` to preview locally.
-4. Push to `main` — GitHub Actions regenerates the manifest and redeploys automatically.
+1. Create `src/photos/[year]/[slug]/` (e.g. `src/photos/2026/my-collection/`).
+2. Add photo files to that folder. The collection slug and title are derived from `[slug]`; the year is derived from `[year]`.
+3. Optionally add a `meta.json` with `cover` (filename), `order` (sort weight), or a `title` override.
+4. Run `npm run dev` to preview locally.
+5. Push to `main` — GitHub Actions regenerates the manifest and redeploys automatically.
 
 ---
 
