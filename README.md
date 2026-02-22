@@ -1,4 +1,4 @@
-# Portfolio
+# Photography Portfolio
 
 A static photo portfolio site.
 
