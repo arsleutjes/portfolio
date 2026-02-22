@@ -253,7 +253,7 @@ Place an optional `meta.json` in each collection folder:
 | Field | Type | Required | Default |
 |---|---|---|---|
 | `title` | string | No | Prettified folder name (hyphens → spaces, title-cased) |
-| `cover` | string | No | First image file alphabetically |
+| `cover` | string | No | First image file alphabetically. The cover image is placed first in the photo grid so it receives LCP treatment (`loading="eager"`, `fetchpriority="high"`, `<link rel="preload">`). |
 | `order` | number | No | Omitted collections sort after those with an explicit order |
 
 `year` is not a valid `meta.json` field — it is always read from the parent year folder
