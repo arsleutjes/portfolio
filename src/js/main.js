@@ -84,6 +84,13 @@ async function renderHomepage() {
   const logoEl = document.querySelector('.site-header .logo a');
   if (logoEl) logoEl.textContent = manifest.site.title;
 
+  // Update canonical URL
+  const canonical = document.getElementById('canonical-link');
+  if (canonical) {
+    const path = window.location.pathname.replace(/\/index\.html$/, '/');
+    canonical.href = window.location.origin + path;
+  }
+
   const grid = document.getElementById('cover-grid');
   if (!grid) return;
 
@@ -121,6 +128,12 @@ async function renderCollection() {
   document.title = `${collection.title} — ${manifest.site.title}`;
   document.getElementById('page-title').textContent = collection.title;
   document.getElementById('page-year').textContent = collection.year;
+
+  // Set canonical URL for this collection
+  const canonical = document.getElementById('canonical-link');
+  if (canonical) {
+    canonical.href = `${window.location.origin}${window.location.pathname}?slug=${encodeURIComponent(slug)}`;
+  }
 
   // Build justified photo grid
   const grid = document.getElementById('photo-grid');
@@ -190,10 +203,23 @@ async function renderAbout() {
   const logoEl = document.querySelector('.site-header .logo a');
   if (logoEl) logoEl.textContent = manifest.site.title;
 
-  // Hide profile photo if it fails to load
+  // Update canonical URL
+  const canonical = document.getElementById('canonical-link');
+  if (canonical) canonical.href = window.location.origin + window.location.pathname;
+
+  // Show profile photo when loaded; hide entire profile block on failure.
   const photo = document.getElementById('about-photo');
   if (photo) {
-    photo.onerror = () => { photo.style.display = 'none'; };
+    const profileWrap = photo.parentElement;
+    const onSuccess = () => photo.classList.add('loaded');
+    const onFailure = () => { if (profileWrap) profileWrap.style.display = 'none'; };
+    if (photo.complete) {
+      // Image already resolved before this handler was attached
+      if (photo.naturalWidth > 0) onSuccess(); else onFailure();
+    } else {
+      photo.onload = onSuccess;
+      photo.onerror = onFailure;
+    }
   }
 
   // Content is pre-rendered at build time into #about-content; skip fetch.

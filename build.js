@@ -23,7 +23,7 @@ const PHOTOS_DIST = path.join(DIST, 'photos');
 const IMAGE_EXTS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif']);
 
 /** Maximum dimension (width or height) for optimised images. */
-const MAX_DIMENSION = 2400;
+const MAX_DIMENSION = 1920;
 /** WebP quality for optimised images. */
 const WEBP_QUALITY = 85;
 
@@ -69,9 +69,9 @@ for (const entry of fs.readdirSync(SRC, { withFileTypes: true })) {
       copyDir(path.join(SRC, entry.name), path.join(DIST, entry.name));
     }
   } else {
-    // Copy .html files; skip about.md and manifest.json
+    // Copy .html and .txt files; skip about.md and manifest.json
     const ext = path.extname(entry.name).toLowerCase();
-    if (ext === '.html') {
+    if (ext === '.html' || ext === '.txt') {
       fs.copyFileSync(path.join(SRC, entry.name), path.join(DIST, entry.name));
     }
   }
@@ -107,6 +107,15 @@ if (fs.existsSync(aboutMdPath) && fs.existsSync(aboutHtmlDistPath)) {
   if (!fs.existsSync(PHOTOS_SRC)) {
     console.error('src/photos/ directory not found.');
     process.exit(1);
+  }
+
+  // Copy root-level photo files (e.g. profile.jpg) to _site/photos/
+  ensureDir(PHOTOS_DIST);
+  for (const entry of fs.readdirSync(PHOTOS_SRC, { withFileTypes: true })) {
+    if (!entry.isDirectory() && IMAGE_EXTS.has(path.extname(entry.name).toLowerCase())) {
+      fs.copyFileSync(path.join(PHOTOS_SRC, entry.name), path.join(PHOTOS_DIST, entry.name));
+      console.log(`Copied root photo: ${entry.name}`);
+    }
   }
 
   const yearDirs = fs.readdirSync(PHOTOS_SRC, { withFileTypes: true })
