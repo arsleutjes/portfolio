@@ -102,6 +102,7 @@ portfolio/
     collection.html
     about.html               <- shell; #about-content injected at build time
     robots.txt
+    favicon.svg              <- SVG favicon: "AS" in bold Georgia serif (Playfair Display fallback), black on white
   content/                   <- user-supplied content (edit this, not src/)
     meta.json                <- site-level config: title, static flag (see spec below)
     photos/
@@ -126,7 +127,8 @@ portfolio/
 Running `node build.js` produces a clean `_site/` folder:
 
 1. **Static assets** — copies `index.html`, `collection.html`, `about.html`, `robots.txt`,
-   and `js/` from `src/` to `_site/`. The `css/` directory is **not** copied — its
+   `favicon.svg`, and any other `.svg`, `.ico`, or `.png` files from `src/`, plus the `js/`
+   directory, to `_site/`. The `css/` directory is **not** copied — its
    contents are inlined directly into each HTML file (see step 2).
 2. **CSS inlining** — reads `src/css/style.css`, minifies it with `clean-css` (level 2,
    ~36% reduction), and replaces the
@@ -153,9 +155,9 @@ Running `node build.js` produces a clean `_site/` folder:
 6. **Manifest** — writes `_site/manifest.json` with dimensions taken from the optimised
    output files. The `site.title` is read from `content/meta.json`.
 7. **OG image injection** — if the `SITE_URL` environment variable is set, fills in the
-   `og:url`, `og:image`, and `twitter:image` tags in `_site/index.html` with absolute
-   URLs (site root and first collection's cover image). Without `SITE_URL` the tags are
-   left with empty `content` attributes (valid; crawlers skip blank tags).
+   `og:url`, `og:image`, `twitter:image`, and `canonical` tags in `_site/index.html` and
+   `_site/about.html` with absolute URLs derived from `SITE_URL`. Without `SITE_URL` the
+   tags are left with empty `content`/`href` attributes (valid; crawlers skip blank tags).
 8. **Static pre-render** (when `content/meta.json` sets `"static": true`) — fully
    pre-renders the homepage cover grid into `_site/index.html` and generates an individual
    `_site/collection/[slug]/index.html` for every collection. Each pre-rendered page:
@@ -286,12 +288,13 @@ name.
 All three HTML templates (`index.html`, `collection.html`, `about.html`) include Open Graph
 and Twitter Card `<meta>` tags.
 
-- **Homepage (`index.html`):** Static title and description. `build.js` fills in `og:url`
-  (site root) and `og:image` / `twitter:image` (first collection's `coverOg`, 1200×630 WebP)
+- **Homepage (`index.html`):** Static title and description. `build.js` fills in `og:url`,
+  `canonical`, `og:image`, and `twitter:image` (first collection's `coverOg`, 1200×630 WebP)
   at build time using the `SITE_URL` environment variable. Tags are left empty if `SITE_URL`
-  is not set — valid HTML; crawlers skip blank `content` attributes.
-- **About page (`about.html`):** Static title, description, and `og:url`. `og:image` is
-  left blank (no dedicated about image exists).
+  is not set — valid HTML; crawlers skip blank `content`/`href` attributes.
+- **About page (`about.html`):** Static title and description. `build.js` fills in `og:url`
+  and `canonical` at build time from `SITE_URL`. `og:image` is left blank (no dedicated
+  about image exists).
 - **Collection page (`collection.html` / `_site/collection/[slug]/index.html`):** In static
   mode, `build.js` bakes in the collection title, description, canonical URL, and `coverOg`
   URL at build time. In JS fallback mode (`collection.html?slug=`), `main.js`

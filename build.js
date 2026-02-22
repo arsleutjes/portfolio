@@ -237,9 +237,10 @@ for (const entry of fs.readdirSync(SRC, { withFileTypes: true })) {
       copyDir(path.join(SRC, entry.name), path.join(DIST, entry.name));
     }
   } else {
-    // Copy .html and .txt files; skip about.md and manifest.json
+    // Copy .html, .txt, and web asset files; skip about.md and manifest.json
     const ext = path.extname(entry.name).toLowerCase();
-    if (ext === '.html' || ext === '.txt') {
+    const allowedExtensions = ['.html', '.txt', '.svg', '.ico', '.png'];
+    if (allowedExtensions.includes(ext)) {
       fs.copyFileSync(path.join(SRC, entry.name), path.join(DIST, entry.name));
     }
   }
@@ -577,12 +578,24 @@ if (fs.existsSync(aboutMdPath) && fs.existsSync(aboutHtmlDistPath)) {
       const ogCoverPath = output[0].coverOg || output[0].cover;
       const coverUrl = ogCoverPath ? `${siteUrl}/${ogCoverPath}` : '';
       html = html.replace(/(property="og:url"\s+content=")(")/,   `$1${siteUrl}/$2`);
+      html = html.replace(/(<link[^>]*id="canonical-link"[^>]*href=")[^"]*("[^>]*>)/, `$1${siteUrl}/$2`);
       if (coverUrl) {
         html = html.replace(/(property="og:image"\s+content=")(")/,  `$1${coverUrl}$2`);
         html = html.replace(/(name="twitter:image"\s+content=")(")/,  `$1${coverUrl}$2`);
       }
       fs.writeFileSync(indexDistPath, html);
       console.log(`Injected OG image URLs into _site/index.html (${siteUrl})`);
+    }
+
+    // Inject absolute og:url and canonical into _site/about.html
+    const aboutDistPath = path.join(DIST, 'about.html');
+    if (fs.existsSync(aboutDistPath)) {
+      let aboutHtml = fs.readFileSync(aboutDistPath, 'utf8');
+      const aboutUrl = `${siteUrl}/about.html`;
+      aboutHtml = aboutHtml.replace(/(property="og:url"\s+content=")[^"]*(")/,             `$1${aboutUrl}$2`);
+      aboutHtml = aboutHtml.replace(/(<link[^>]*id="canonical-link"[^>]*href=")[^"]*("[^>]*>)/, `$1${aboutUrl}$2`);
+      fs.writeFileSync(aboutDistPath, aboutHtml);
+      console.log(`Injected OG URLs into _site/about.html (${siteUrl})`);
     }
   } else if (!siteUrl) {
     console.log('Tip: set SITE_URL env var to populate absolute og:url / og:image on the homepage.');
