@@ -132,9 +132,18 @@ async function renderHomepage() {
   const grid = document.getElementById('cover-grid');
 
   // Static pre-rendered homepage: the cover grid is already in the HTML.
-  // Just activate lazy loading for the non-LCP cards and return.
+  // Activate lazy loading for non-LCP cards; reveal the eagerly-loaded LCP image.
   if (grid && grid.dataset.prerendered === 'true') {
     grid.querySelectorAll('img[data-src]').forEach(img => lazyLoad(img));
+    // The LCP cover image has a real src and no data-src — add 'loaded' once ready.
+    grid.querySelectorAll('img:not([data-src])').forEach(img => {
+      if (img.complete) {
+        img.classList.add('loaded');
+      } else {
+        img.onload  = () => img.classList.add('loaded');
+        img.onerror = () => img.classList.add('loaded');
+      }
+    });
     return;
   }
 
@@ -181,7 +190,17 @@ async function renderCollection() {
       const h   = parseInt(img.getAttribute('height') || 1080, 10);
       items.push({ src, width: w, height: h, element: item });
       item.addEventListener('click', () => openLightbox(items, i));
-      if (img.dataset.src) lazyLoad(img);
+      if (img.dataset.src) {
+        lazyLoad(img);
+      } else {
+        // LCP image has a real src — add 'loaded' once the browser has it.
+        if (img.complete) {
+          img.classList.add('loaded');
+        } else {
+          img.onload  = () => img.classList.add('loaded');
+          img.onerror = () => img.classList.add('loaded');
+        }
+      }
     });
 
     const alsoSection = document.getElementById('also-like');
