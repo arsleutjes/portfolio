@@ -124,7 +124,7 @@ async function renderCollection() {
     // Justified flex grow — proportional to aspect ratio
     const ratio = photo.width / photo.height;
     item.style.flexGrow = ratio;
-    item.style.flexBasis = `${ratio * 200}px`; // hint to browser for wrapping
+    item.style.flexBasis = `${ratio * 350}px`; // hint to browser for wrapping
 
     // Aspect ratio spacer
     const filler = document.createElement('span');
