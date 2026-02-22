@@ -26,7 +26,7 @@ npm run dev        # http://localhost:3000
    - **`order`** — numeric sort weight (omit to sort after explicitly ordered collections).
    - The **title** is always derived from the folder name (hyphens/underscores → spaces, title-cased). You can override it with an optional `title` field.
    - The **year** is always derived from the parent year folder name — no need to specify it in `meta.json`.
-4. Run `npm run build` (or restart `npm run dev`) to regenerate `manifest.json`.
+4. Run `npm run build` (or restart `npm run dev`) to regenerate the build.
 
 ## Deploying to GitHub Pages
 
@@ -36,13 +36,13 @@ Deploys automatically on every push to `main` via GitHub Actions.
 
 ## How the build works
 
-`npm run build` runs `generate-manifest.js`, which:
+`npm run build` runs `build.js`, which produces a `_site/` folder containing only what needs to be publicly served:
 
-1. Scans each numeric subdirectory of `src/photos/` as a year (e.g. `2026/`).
-2. Within each year folder, scans each subdirectory as a collection. The **slug** and **title** are derived from the collection folder name; the **year** is derived from the parent year folder name.
-3. Reads the optional `meta.json` per collection for title override, cover image, and sort order.
-4. Reads the pixel dimensions of every image (`.jpg`, `.jpeg`, `.png`, `.webp`, `.gif`) via `image-size`, so the front-end can reserve the correct aspect ratio before images load.
-5. Sorts collections by explicit `order` (ascending) first, then by year descending, then alphabetically.
-6. Writes `src/manifest.json`, which the front-end fetches at runtime to render the gallery — no server-side rendering involved.
+1. **Static assets** — `index.html`, `collection.html`, `about.html`, `css/`, and `js/` are copied from `src/` to `_site/`.
+2. **About page** — `src/about.md` is rendered to HTML at build time and injected directly into `_site/about.html`. The raw `.md` file is never included in `_site/`.
+3. **Image optimisation** — every source image under `src/photos/` is resized to a maximum of 2400 px on its longest side and re-compressed as JPEG (quality 85) before being written to `_site/photos/`. Source-only files such as `meta.json` are not copied.
+4. **Manifest** — `_site/manifest.json` is generated with the correct photo dimensions (taken from the optimised output), so the front-end can reserve aspect-ratio space before images load.
 
-`npm run dev` chains the build step and starts a static file server (`serve`) pointed at `src/`.
+`npm run dev` chains the build step and starts a static file server (`serve`) pointed at `_site/`.
+
+The `_site/` folder is listed in `.gitignore` and is never committed — it is regenerated from scratch on every build.
