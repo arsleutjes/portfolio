@@ -15,7 +15,7 @@ npm run dev        # http://localhost:3000
 
 1. Create a folder under `content/photos/[year]/` for the correct year (e.g. `content/photos/2026/my-collection/`).
 2. Add images to that folder.
-3. Optionally add a `meta.json`:
+3. Optionally add a `meta.json` in the collection folder:
    ```json
    {
      "cover": "DSC_001.jpg",
@@ -27,6 +27,23 @@ npm run dev        # http://localhost:3000
    - The **title** is always derived from the folder name (hyphens/underscores → spaces, title-cased). You can override it with an optional `title` field.
    - The **year** is always derived from the parent year folder name — no need to specify it in `meta.json`.
 4. Run `npm run build` (or restart `npm run dev`) to regenerate the build.
+
+## Site configuration
+
+Edit `content/meta.json` to set site-wide options:
+
+```json
+{
+  "title": "Your Name",
+  "static": true
+}
+```
+
+- **`title`** — photographer name shown in the logo and `<title>` tags (default: `"Portfolio"`).
+- **`static`** — when `true`, the build pre-renders the homepage cover grid and generates
+  individual HTML pages for every collection at `_site/collection/[slug]/index.html`.
+  This makes the LCP image discoverable directly from the HTML without any JavaScript
+  execution.
 
 ## Deploying to GitHub Pages
 
@@ -42,7 +59,8 @@ Deploys automatically on every push to `main` via GitHub Actions.
 2. **CSS inlining** — `src/css/style.css` is read at build time and embedded as a `<style>` block inside each HTML file, eliminating the render-blocking CSS network request.
 3. **About page** — `content/about.md` is rendered to HTML at build time and injected directly into `_site/about.html`. The raw `.md` file is never included in `_site/`.
 4. **Image optimisation** — every source image under `content/photos/` is processed with `sharp` into four WebP variants (400w, 800w, 1200w, 1920w at quality 85) and written to `_site/photos/`. Results are cached in `.image-cache/` (keyed by SHA-256 hash of the source file) so unchanged images are skipped on subsequent builds. Source-only files such as `meta.json` are not copied.
-5. **Manifest** — `_site/manifest.json` is generated with the correct photo dimensions (taken from the optimised output), so the front-end can reserve aspect-ratio space before images load.
+5. **Manifest** — `_site/manifest.json` is generated with the correct photo dimensions (taken from the optimised output), so the front-end can reserve aspect-ratio space before images load. The site title comes from `content/meta.json`.
+6. **Static pre-render** (when `content/meta.json` sets `"static": true`) — the homepage cover grid is baked into `_site/index.html` and every collection gets its own `_site/collection/[slug]/index.html`. Each pre-rendered page includes a `<link rel="preload" as="image">` for the LCP image and renders it with `loading="eager" fetchpriority="high"`, so the browser can fetch it without waiting for JavaScript.
 
 `npm run dev` chains the build step and starts a static file server (`serve`) pointed at `_site/`.
 

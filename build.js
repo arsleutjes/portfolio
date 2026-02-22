@@ -29,6 +29,21 @@ const WEBP_QUALITY = 85;
 /** Responsive widths generated for every image. */
 const RESPONSIVE_WIDTHS = [400, 800, 1200, 1920];
 
+// ─── Site-level content/meta.json ─────────────────────────────────────────────
+
+const CONTENT_META_PATH = path.join(CONTENT, 'meta.json');
+let contentMeta = {};
+if (fs.existsSync(CONTENT_META_PATH)) {
+  try {
+    contentMeta = JSON.parse(fs.readFileSync(CONTENT_META_PATH, 'utf8'));
+  } catch {
+    console.warn('Warning: could not parse content/meta.json; using defaults.');
+  }
+}
+
+const SITE_TITLE  = contentMeta.title  || 'Portfolio';
+const STATIC_MODE = contentMeta.static === true;
+
 /**
  * Persistent cache directory: stores processed WebP variants so unchanged
  * images are not re-encoded on every build.
@@ -42,6 +57,126 @@ function prettifySlug(slug) {
   return slug
     .replace(/[-_]/g, ' ')
     .replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/**
+ * Build a `<link rel="preload" as="image">` tag for the LCP image.
+ * Uses the 800w srcset entry as href (good default for initial viewport).
+ */
+function buildImagePreloadTag(src, srcset, sizes) {
+  let href = src;
+  if (srcset) {
+    const m = srcset.split(', ').find(p => p.includes(' 800w'));
+    if (m) href = m.split(' ')[0];
+  }
+  let tag = `  <link rel="preload" as="image" href="${escapeHtml(href)}" fetchpriority="high"`;
+  if (srcset) tag += ` imagesrcset="${escapeHtml(srcset)}" imagesizes="${escapeHtml(sizes)}"`;
+  tag += '>';
+  return tag;
+}
+
+/**
+ * Render the homepage cover-card grid as static HTML.
+ * @param {object[]} collections  Sorted manifest collections array.
+ * @returns {string} Inner HTML for #cover-grid.
+ */
+function buildCoverGridHtml(collections) {
+  const sizes = '(max-width: 480px) 100vw, (max-width: 768px) 50vw, 33vw';
+  return collections.map((col, idx) => {
+    const href = `collection/${encodeURIComponent(col.slug)}/`;
+    const coverSrc  = col.cover || '';
+    const coverSrcset = col.coverSrcset || null;
+    const imgAttrs = idx === 0
+      ? `src="${escapeHtml(coverSrc)}"`
+        + (coverSrcset ? ` srcset="${escapeHtml(coverSrcset)}" sizes="${sizes}"` : '')
+        + ' loading="eager" fetchpriority="high"'
+      : `data-src="${escapeHtml(coverSrc)}"`
+        + (coverSrcset ? ` data-srcset="${escapeHtml(coverSrcset)}" data-sizes="${escapeHtml(sizes)}"` : '')
+        + ' loading="lazy"';
+    return [
+      `    <a class="project-cover" href="${escapeHtml(href)}">`,
+      `      <div class="cover-image">`,
+      `        <img alt="${escapeHtml(col.title)}" ${imgAttrs}>`,
+      `      </div>`,
+      `      <div class="cover-details">`,
+      `        <div class="cover-title">${escapeHtml(col.title)}</div>`,
+      `        <div class="cover-year">${col.year}</div>`,
+      `      </div>`,
+      `    </a>`,
+    ].join('\n');
+  }).join('\n');
+}
+
+/**
+ * Render the justified photo grid for a collection as static HTML.
+ * @param {object[]} photos  Array of { src, srcset, width, height }.
+ * @param {string}   colTitle  Collection title (used for alt text).
+ * @returns {string} Inner HTML for #photo-grid.
+ */
+function buildPhotoGridHtml(photos, colTitle) {
+  const sizes = '(max-width: 500px) 100vw, (max-width: 1200px) 50vw, 800px';
+  return photos.map((photo, i) => {
+    const ratio        = photo.width / photo.height;
+    const flexBasis    = (ratio * 350).toFixed(2);
+    const paddingBot   = ((photo.height / photo.width) * 100).toFixed(4);
+    const alt          = `${escapeHtml(colTitle)} — photo ${i + 1}`;
+    const imgAttrs = i === 0
+      ? `src="${escapeHtml(photo.src)}"`
+        + (photo.srcset ? ` srcset="${escapeHtml(photo.srcset)}" sizes="${sizes}"` : '')
+        + ` width="${photo.width}" height="${photo.height}" loading="eager" fetchpriority="high"`
+      : `data-src="${escapeHtml(photo.src)}"`
+        + (photo.srcset ? ` data-srcset="${escapeHtml(photo.srcset)}" data-sizes="${escapeHtml(sizes)}"` : '')
+        + ` width="${photo.width}" height="${photo.height}" loading="lazy"`;
+    return [
+      `    <div class="photo-grid-item" style="flex-grow:${ratio};flex-basis:${flexBasis}px">`,
+      `      <span class="photo-grid-filler" style="padding-bottom:${paddingBot}%"></span>`,
+      `      <img alt="${alt}" ${imgAttrs}>`,
+      `    </div>`,
+    ].join('\n');
+  }).join('\n');
+}
+
+/**
+ * Render "You may also like" cover cards for a collection page.
+ * @param {object[]} others  Up to 4 other collections.
+ * @returns {string} Inner HTML for #also-like.
+ */
+function buildAlsoLikeHtml(others) {
+  const sizes = '(max-width: 480px) 100vw, (max-width: 768px) 50vw, 33vw';
+  const cards = others.map(col => {
+    // With <base href="../../"> on the collection page, collection/[slug]/ resolves correctly.
+    const href = `collection/${encodeURIComponent(col.slug)}/`;
+    const coverSrc    = col.cover || '';
+    const coverSrcset = col.coverSrcset || null;
+    const imgAttrs = `data-src="${escapeHtml(coverSrc)}"`
+      + (coverSrcset ? ` data-srcset="${escapeHtml(coverSrcset)}" data-sizes="${escapeHtml(sizes)}"` : '')
+      + ' loading="lazy"';
+    return [
+      `      <a class="project-cover" href="${escapeHtml(href)}">`,
+      `        <div class="cover-image">`,
+      `          <img alt="${escapeHtml(col.title)}" ${imgAttrs}>`,
+      `        </div>`,
+      `        <div class="cover-details">`,
+      `          <div class="cover-title">${escapeHtml(col.title)}</div>`,
+      `          <div class="cover-year">${col.year}</div>`,
+      `        </div>`,
+      `      </a>`,
+    ].join('\n');
+  }).join('\n');
+  return [
+    `    <h2>You may also like</h2>`,
+    `    <div id="also-like-grid" class="project-covers">`,
+    cards,
+    `    </div>`,
+  ].join('\n');
 }
 
 function ensureDir(dir) {
@@ -358,7 +493,7 @@ if (fs.existsSync(aboutMdPath) && fs.existsSync(aboutHtmlDistPath)) {
   const output = collections.map(({ order, ...rest }) => rest);
 
   const manifest = {
-    site: { title: 'Arwin Sleutjes' },
+    site: { title: SITE_TITLE },
     collections: output,
   };
 
@@ -393,6 +528,163 @@ if (fs.existsSync(aboutMdPath) && fs.existsSync(aboutHtmlDistPath)) {
     }
   } else if (!siteUrl) {
     console.log('Tip: set SITE_URL env var to populate absolute og:url / og:image on the homepage.');
+  }
+
+  // ─── Static pre-render (STATIC_MODE) ─────────────────────────────────────
+  // When content/meta.json sets "static": true, fully pre-render the homepage
+  // cover grid and generate individual collection pages in
+  // _site/collection/[slug]/index.html.  The LCP image is injected into
+  // <head> as a <link rel="preload"> and rendered into the HTML with
+  // loading="eager" fetchpriority="high" so the browser discovers it
+  // immediately — no manifest fetch required for the initial render.
+
+  if (STATIC_MODE) {
+    console.log('\nStatic mode enabled — pre-rendering HTML pages...');
+
+    // ── Homepage ─────────────────────────────────────────────────────────────
+    const indexDistPath = path.join(DIST, 'index.html');
+    if (fs.existsSync(indexDistPath) && output.length > 0) {
+      let html = fs.readFileSync(indexDistPath, 'utf8');
+
+      // Bake site title into <title> and logo
+      html = html.replace(
+        /<title>[^<]*<\/title>/,
+        `<title>${escapeHtml(SITE_TITLE)}</title>`
+      );
+      html = html.replace(
+        /(<div class="logo"><a href="index\.html">)[^<]*(<\/a><\/div>)/,
+        `$1${escapeHtml(SITE_TITLE)}$2`
+      );
+
+      // Inject <link rel="preload"> for the LCP cover image
+      const firstCol = output[0];
+      if (firstCol.cover) {
+        const coverSizes = '(max-width: 480px) 100vw, (max-width: 768px) 50vw, 33vw';
+        const preloadTag = buildImagePreloadTag(firstCol.cover, firstCol.coverSrcset, coverSizes);
+        html = html.replace('</head>', `${preloadTag}\n</head>`);
+      }
+
+      // Pre-render cover grid
+      const coverGridHtml = buildCoverGridHtml(output);
+      html = html.replace(
+        /(<section[^>]*id="cover-grid"[^>]*>)([\s\S]*?)(<\/section>)/,
+        `$1\n${coverGridHtml}\n    $3`
+      );
+      // Mark as pre-rendered so main.js skips manifest fetch + DOM rebuild
+      html = html.replace(
+        /(<section[^>]*id="cover-grid")([^>]*>)/,
+        '$1 data-prerendered="true"$2'
+      );
+      // Remove manifest preload hint — not needed for a pre-rendered homepage
+      html = html.replace(
+        /[ \t]*<!-- Preload manifest so JS can start rendering as soon as possible -->[ \t]*\n[ \t]*<link rel="preload" href="manifest\.json" as="fetch" crossorigin>[ \t]*\n/,
+        ''
+      );
+
+      fs.writeFileSync(indexDistPath, html);
+      console.log('  Pre-rendered _site/index.html cover grid.');
+    }
+
+    // ── Per-collection static pages ──────────────────────────────────────────
+    const collTplPath = path.join(DIST, 'collection.html');
+    if (fs.existsSync(collTplPath)) {
+      const collTemplate = fs.readFileSync(collTplPath, 'utf8');
+
+      for (const col of output) {
+        const colDir = path.join(DIST, 'collection', col.slug);
+        ensureDir(colDir);
+
+        let html = collTemplate;
+
+        // Add <base href="../../"> so all site-root-relative paths resolve correctly
+        // from _site/collection/[slug]/index.html
+        html = html.replace('<head>', '<head>\n  <base href="../../">');
+
+        // Bake title, logo, page header
+        const pageTitle = `${col.title} — ${SITE_TITLE}`;
+        html = html
+          .replace(/<title>[^<]*<\/title>/, `<title>${escapeHtml(pageTitle)}</title>`)
+          .replace(
+            /(<div class="logo"><a href="index\.html">)[^<]*(<\/a><\/div>)/,
+            `$1${escapeHtml(SITE_TITLE)}$2`
+          )
+          .replace(
+            /(<h1[^>]*id="page-title"[^>]*>)[^<]*(<\/h1>)/,
+            `$1${escapeHtml(col.title)}$2`
+          )
+          .replace(
+            /(<div[^>]*id="page-year"[^>]*>)[^<]*(<\/div>)/,
+            `$1${col.year}$2`
+          );
+
+        // Bake OG / Twitter meta
+        const colDesc  = `${col.title} (${col.year}) — ${SITE_TITLE}`;
+        const coverUrl = siteUrl && col.cover ? `${siteUrl}/${col.cover}` : col.cover || '';
+        const colUrl   = siteUrl ? `${siteUrl}/collection/${col.slug}/` : '';
+        html = html
+          .replace(/(property="og:title"\s+content=")[^"]*(")/,       `$1${escapeHtml(pageTitle)}$2`)
+          .replace(/(property="og:description"\s+content=")[^"]*(")/,  `$1${escapeHtml(colDesc)}$2`)
+          .replace(/(property="og:url"\s+content=")[^"]*(")/,          `$1${escapeHtml(colUrl)}$2`)
+          .replace(/(property="og:image"\s+content=")[^"]*(")/,        `$1${escapeHtml(coverUrl)}$2`)
+          .replace(/(name="twitter:title"\s+content=")[^"]*(")/,       `$1${escapeHtml(pageTitle)}$2`)
+          .replace(/(name="twitter:description"\s+content=")[^"]*(")/,  `$1${escapeHtml(colDesc)}$2`)
+          .replace(/(name="twitter:image"\s+content=")[^"]*(")/,       `$1${escapeHtml(coverUrl)}$2`);
+
+        // Bake canonical URL
+        if (colUrl) {
+          html = html.replace(
+            /(<link[^>]*id="canonical-link"[^>]*href=")[^"]*("[^>]*>)/,
+            `$1${escapeHtml(colUrl)}$2`
+          );
+        }
+
+        // Inject <link rel="preload"> for the LCP photo
+        if (col.photos.length > 0) {
+          const photoSizes = '(max-width: 500px) 100vw, (max-width: 1200px) 50vw, 800px';
+          const preloadTag = buildImagePreloadTag(
+            col.photos[0].src,
+            col.photos[0].srcset,
+            photoSizes
+          );
+          html = html.replace('</head>', `${preloadTag}\n</head>`);
+        }
+
+        // Remove manifest preload hint — not needed for pre-rendered collection
+        html = html.replace(
+          /[ \t]*<!-- Preload manifest so JS can start rendering as soon as possible -->[ \t]*\n[ \t]*<link rel="preload" href="manifest\.json" as="fetch" crossorigin>[ \t]*\n/,
+          ''
+        );
+
+        // Pre-render justified photo grid
+        const photoGridHtml = buildPhotoGridHtml(col.photos, col.title);
+        html = html.replace(
+          /(<section[^>]*id="photo-grid"[^>]*>)([\s\S]*?)(<\/section>)/,
+          `$1\n${photoGridHtml}\n      $3`
+        );
+        html = html.replace(
+          /(<section[^>]*id="photo-grid")([^>]*>)/,
+          '$1 data-prerendered="true"$2'
+        );
+
+        // Pre-render "You may also like" section
+        // Deterministic alphabetical sort → reproducible output across builds
+        const others = output
+          .filter(c => c.slug !== col.slug)
+          .sort((a, b) => a.slug.localeCompare(b.slug))
+          .slice(0, 4);
+        if (others.length) {
+          const alsoLikeHtml = buildAlsoLikeHtml(others);
+          html = html.replace(
+            /(<section[^>]*id="also-like"[^>]*)(style="display:none")([^>]*>)([\s\S]*?)(<\/section>)/,
+            `<section id="also-like" class="also-like" data-prerendered="true">\n${alsoLikeHtml}\n      $5`
+          );
+        }
+
+        fs.writeFileSync(path.join(colDir, 'index.html'), html);
+        console.log(`  Pre-rendered _site/collection/${col.slug}/index.html`);
+      }
+    }
+    console.log('Static pre-render complete.');
   }
 
   console.log(`Build complete → _site/`);

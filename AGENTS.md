@@ -4,7 +4,7 @@
 
 Build a static photography portfolio website. The site has no backend and no JS framework.
 Photos live in `content/photos/[year]/[slug]/`; each subfolder becomes a collection page. A
-Node.js build script optimises images, pre-renders the about page, and generates
+Node.js build script optimises images, pre-renders pages to static HTML, and generates
 `manifest.json`. The built output in `_site/` is deployed to GitHub Pages via GitHub
 Actions.
 
@@ -49,14 +49,15 @@ When proposing or applying any change to this project, agents must:
 - **Homepage (`index.html`):** CSS flexbox cover grid.
   - 3 columns on desktop, 2 on tablet, 1 on mobile.
   - Each card shows: cover image, collection title, year.
-  - Cards link to `collection.html?slug=[slug]`.
+  - Cards link to `collection/[slug]/` (static mode) or `collection.html?slug=[slug]` (JS fallback).
 - **Collection page (`collection.html`):** Justified flex photo grid.
   - Each photo item must have `flex-grow: [width/height]` and
     `padding-bottom: [height/width * 100%]` so rows fill the full width at correct
     aspect ratios.
   - Page header: collection title and year.
-  - "You may also like" section at the bottom: up to 4 randomly chosen other collections
-    using the same cover card structure as the homepage.
+  - "You may also like" section at the bottom: up to 4 other collections (deterministic
+    alphabetical order in static mode; random in JS-rendered mode) using the same cover
+    card structure as the homepage.
 - **About page (`about.html`):** Renders content from `content/about.md`. The Markdown is
   pre-rendered to HTML at build time and injected into `_site/about.html`; the raw `.md`
   file is never served publicly.
@@ -79,7 +80,8 @@ When proposing or applying any change to this project, agents must:
 | `_site/` | **Never committed** — built output; add to `.gitignore` |
 | `.image-cache/` | **Never committed** — persistent cache of processed WebP variants; add to `.gitignore` |
 | `manifest.json` | Written to `_site/manifest.json` at build time; never committed |
-| Routing | `collection.html?slug=` query param — no redirect rules needed |
+| Static mode | Enabled by `"static": true` in `content/meta.json` — pre-renders the homepage cover grid and generates `_site/collection/[slug]/index.html` per collection |
+| Static routing | Homepage cover cards link to `collection/[slug]/`; `collection.html?slug=` still works as a JS-rendered fallback |
 | Hosting | GitHub Pages via GitHub Actions |
 | Node version | 22 (use `actions/setup-node@v4` with `node-version: 22`) |
 
@@ -99,10 +101,11 @@ portfolio/
     about.html               <- shell; #about-content injected at build time
     robots.txt
   content/                   <- user-supplied content (edit this, not src/)
+    meta.json                <- site-level config: title, static flag (see spec below)
     photos/
       2026/
         example-collection/
-          meta.json          <- see meta.json spec below
+          meta.json          <- see collection meta.json spec below
           cover.jpg          <- placeholder or real image
           01.jpg
     about.md                 <- source content for the about page
@@ -139,11 +142,25 @@ Running `node build.js` produces a clean `_site/` folder:
    `.image-cache/` and the index is updated. Source-only files (`meta.json`, `about.md`) are
    never copied.
 5. **Manifest** — writes `_site/manifest.json` with dimensions taken from the optimised
-   output files.
+   output files. The `site.title` is read from `content/meta.json`.
 6. **OG image injection** — if the `SITE_URL` environment variable is set, fills in the
    `og:url`, `og:image`, and `twitter:image` tags in `_site/index.html` with absolute
    URLs (site root and first collection's cover image). Without `SITE_URL` the tags are
    left with empty `content` attributes (valid; crawlers skip blank tags).
+7. **Static pre-render** (when `content/meta.json` sets `"static": true`) — fully
+   pre-renders the homepage cover grid into `_site/index.html` and generates an individual
+   `_site/collection/[slug]/index.html` for every collection. Each pre-rendered page:
+   - Injects `<link rel="preload" as="image" fetchpriority="high">` in `<head>` for the
+     LCP image (800w srcset entry with `imagesrcset` / `imagesizes` for responsive hints).
+   - Renders the LCP image with `loading="eager" fetchpriority="high"` so the browser
+     discovers and fetches it immediately without waiting for any JavaScript.
+   - Renders all other images with `data-src` / `data-srcset` for lazy loading via
+     `IntersectionObserver`.
+   - Adds `<base href="../../">` on collection pages so all site-root-relative paths
+     resolve correctly.
+   - Sets `data-prerendered="true"` on `#cover-grid` (homepage) and `#photo-grid` /
+     `#also-like` (collection pages) so `main.js` skips DOM construction and the manifest
+     fetch for the initial render.
 
 ---
 
@@ -186,7 +203,30 @@ Running `node build.js` produces a clean `_site/` folder:
 
 ---
 
-## meta.json Fields
+## content/meta.json Fields (site-level)
+
+Place `content/meta.json` in the `content/` directory to configure site-wide settings:
+
+```json
+{
+  "title": "Your Name",
+  "static": true
+}
+```
+
+| Field | Type | Required | Default |
+|---|---|---|---|
+| `title` | string | No | `"Portfolio"` |
+| `static` | boolean | No | `false` |
+
+- `title` — used as `manifest.site.title`, baked into the `<title>` tag and logo text of
+  all pre-rendered pages.
+- `static` — when `true`, triggers full static pre-rendering of the homepage and
+  per-collection pages (see step 7 of _What `build.js` Does_).
+
+---
+
+## Collection meta.json Fields
 
 Place an optional `meta.json` in each collection folder:
 
@@ -237,8 +277,10 @@ and Twitter Card `<meta>` tags.
   is not set — valid HTML; crawlers skip blank `content` attributes.
 - **About page (`about.html`):** Static title, description, and `og:url`. `og:image` is
   left blank (no dedicated about image exists).
-- **Collection page (`collection.html`):** Base shell values only. `main.js` overwrites all
-  OG and Twitter tags at runtime via `updateCollectionMeta(collection, siteTitle)` once the
+- **Collection page (`collection.html` / `_site/collection/[slug]/index.html`):** In static
+  mode, `build.js` bakes in the collection title, description, canonical URL, and cover
+  image URL at build time. In JS fallback mode (`collection.html?slug=`), `main.js`
+  overwrites all OG and Twitter tags at runtime via `updateCollectionMeta(collection, siteTitle)` once the
   manifest loads, using the collection title, year, and cover image. The cover URL is made
   absolute with `new URL(collection.cover, window.location.href).href`.
 - **`setMeta(attr, value, content)`** — helper in `main.js` that finds an existing `<meta>`
@@ -296,5 +338,7 @@ npm run dev   # builds _site/ then serves at http://localhost:3000
 - [ ] About page renders content from `about.md`; the raw `.md` file is not publicly served.
 - [ ] `_site/` is listed in `.gitignore` and absent from the repository.
 - [ ] Pushing to `main` triggers the GitHub Actions workflow and deploys to GitHub Pages.
+- [ ] When `"static": true` in `content/meta.json`, `_site/index.html` contains a pre-rendered cover grid with the LCP image in the HTML and a `<link rel="preload" as="image">` in `<head>`.
+- [ ] When `"static": true`, each collection has a pre-rendered `_site/collection/[slug]/index.html` with the photo grid and "also like" section in the HTML, the LCP photo marked `loading="eager" fetchpriority="high"`.
 - [ ] `README.md` and `AGENTS.md` accurately reflect the current state of the project after every agent change.
 - [ ] No stale, unused, or superseded files remain in the repository after a change is applied.

@@ -129,6 +129,15 @@ function updateCollectionMeta(collection, siteTitle) {
 // ─── Homepage ──────────────────────────────────────────────────────────────
 
 async function renderHomepage() {
+  const grid = document.getElementById('cover-grid');
+
+  // Static pre-rendered homepage: the cover grid is already in the HTML.
+  // Just activate lazy loading for the non-LCP cards and return.
+  if (grid && grid.dataset.prerendered === 'true') {
+    grid.querySelectorAll('img[data-src]').forEach(img => lazyLoad(img));
+    return;
+  }
+
   const manifest = await fetchManifest();
 
   // Update site title
@@ -143,7 +152,6 @@ async function renderHomepage() {
     canonical.href = window.location.origin + path;
   }
 
-  const grid = document.getElementById('cover-grid');
   if (!grid) return;
 
   if (!manifest.collections.length) {
@@ -159,6 +167,31 @@ async function renderHomepage() {
 // ─── Collection page ───────────────────────────────────────────────────────
 
 async function renderCollection() {
+  const photoGrid = document.getElementById('photo-grid');
+
+  // Static pre-rendered collection page: the photo grid is already in the HTML.
+  // Activate lazy loading for non-LCP photos, wire up PhotoSwipe, show also-like.
+  if (photoGrid && photoGrid.dataset.prerendered === 'true') {
+    const items = [];
+    photoGrid.querySelectorAll('.photo-grid-item').forEach((item, i) => {
+      const img = item.querySelector('img');
+      // LCP image has src set directly; others use data-src for lazy loading
+      const src = img.dataset.src || img.getAttribute('src') || '';
+      const w   = parseInt(img.getAttribute('width')  || 1920, 10);
+      const h   = parseInt(img.getAttribute('height') || 1080, 10);
+      items.push({ src, width: w, height: h, element: item });
+      item.addEventListener('click', () => openLightbox(items, i));
+      if (img.dataset.src) lazyLoad(img);
+    });
+
+    const alsoSection = document.getElementById('also-like');
+    if (alsoSection && alsoSection.dataset.prerendered === 'true') {
+      alsoSection.style.display = '';
+      alsoSection.querySelectorAll('img[data-src]').forEach(img => lazyLoad(img));
+    }
+    return;
+  }
+
   const manifest = await fetchManifest();
 
   // Update site title / logo
