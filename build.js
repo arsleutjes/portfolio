@@ -77,15 +77,22 @@ function escapeHtml(str) {
 /**
  * Build a `<link rel="preload" as="image">` tag for the LCP image.
  * Uses the 800w srcset entry as href (good default for initial viewport).
+ * @param {string} src      Fallback image URL.
+ * @param {string|null} srcset  Responsive srcset string.
+ * @param {string} sizes    Sizes attribute value.
+ * @param {string} [media]  Optional CSS media query (restricts when the hint is applied).
+ * @param {boolean} [highPriority=true]  Whether to add fetchpriority="high".
  */
-function buildImagePreloadTag(src, srcset, sizes) {
+function buildImagePreloadTag(src, srcset, sizes, media, highPriority = true) {
   let href = src;
   if (srcset) {
     const m = srcset.split(', ').find(p => p.includes(' 800w'));
     if (m) href = m.split(' ')[0];
   }
-  let tag = `  <link rel="preload" as="image" href="${escapeHtml(href)}" fetchpriority="high"`;
+  let tag = `  <link rel="preload" as="image" href="${escapeHtml(href)}"`;
+  if (highPriority) tag += ' fetchpriority="high"';
   if (srcset) tag += ` imagesrcset="${escapeHtml(srcset)}" imagesizes="${escapeHtml(sizes)}"`;
+  if (media) tag += ` media="${escapeHtml(media)}"`;
   tag += '>';
   return tag;
 }
@@ -101,13 +108,24 @@ function buildCoverGridHtml(collections) {
     const href = `collection/${encodeURIComponent(col.slug)}/`;
     const coverSrc  = col.cover || '';
     const coverSrcset = col.coverSrcset || null;
-    const imgAttrs = idx === 0
-      ? `src="${escapeHtml(coverSrc)}"`
+    // Indices 0-2 are visible above the fold on desktop/tablet — render eagerly.
+    // Index 0 is the true LCP and gets fetchpriority="high".
+    // Indices 1-2 use eager loading but no fetchpriority hint.
+    // Indices 3+ are below the fold and use lazy loading with data-src.
+    let imgAttrs;
+    if (idx === 0) {
+      imgAttrs = `src="${escapeHtml(coverSrc)}"`
         + (coverSrcset ? ` srcset="${escapeHtml(coverSrcset)}" sizes="${sizes}"` : '')
-        + ' loading="eager" fetchpriority="high"'
-      : `data-src="${escapeHtml(coverSrc)}"`
+        + ' loading="eager" fetchpriority="high"';
+    } else if (idx <= 2) {
+      imgAttrs = `src="${escapeHtml(coverSrc)}"`
+        + (coverSrcset ? ` srcset="${escapeHtml(coverSrcset)}" sizes="${sizes}"` : '')
+        + ' loading="eager"';
+    } else {
+      imgAttrs = `data-src="${escapeHtml(coverSrc)}"`
         + (coverSrcset ? ` data-srcset="${escapeHtml(coverSrcset)}" data-sizes="${escapeHtml(sizes)}"` : '')
         + ' loading="lazy"';
+    }
     return [
       `    <a class="project-cover" href="${escapeHtml(href)}">`,
       `      <div class="cover-image">`,
@@ -621,20 +639,31 @@ if (fs.existsSync(aboutMdPath) && fs.existsSync(aboutHtmlDistPath)) {
   // ─── LCP preload for homepage (non-static mode) ───────────────────────────
   // In static mode the preload tag is injected as part of the full pre-render
   // below.  In non-static mode main.js renders the cover grid dynamically, but
-  // build.js already knows the first collection's cover URL, so we can still
-  // inject a <link rel="preload"> into <head> to let the browser start fetching
-  // the LCP image while the JS manifest request is in flight.
+  // build.js already knows the first few cover URLs, so we can inject
+  // <link rel="preload"> tags into <head> to let the browser start fetching
+  // above-the-fold images while the JS manifest request is in flight.
+  // The grid is 3 cols on desktop (>768 px) and 2 cols on tablet (>480 px),
+  // so we preload the 2nd cover with a (min-width:481px) media condition and
+  // the 3rd with (min-width:769px) to avoid unnecessary fetches on mobile.
   if (!STATIC_MODE && output.length > 0) {
     const indexDistPath = path.join(DIST, 'index.html');
     if (fs.existsSync(indexDistPath)) {
-      const firstCol = output[0];
-      if (firstCol.cover) {
-        let html = fs.readFileSync(indexDistPath, 'utf8');
-        const coverSizes = '(max-width: 480px) 100vw, (max-width: 768px) 50vw, 33vw';
-        const preloadTag = buildImagePreloadTag(firstCol.cover, firstCol.coverSrcset, coverSizes);
-        html = html.replace('</head>', `${preloadTag}\n</head>`);
+      let html = fs.readFileSync(indexDistPath, 'utf8');
+      const coverSizes = '(max-width: 480px) 100vw, (max-width: 768px) 50vw, 33vw';
+      const preloads = [];
+      if (output[0] && output[0].cover) {
+        preloads.push(buildImagePreloadTag(output[0].cover, output[0].coverSrcset, coverSizes));
+      }
+      if (output[1] && output[1].cover) {
+        preloads.push(buildImagePreloadTag(output[1].cover, output[1].coverSrcset, coverSizes, '(min-width: 481px)', false));
+      }
+      if (output[2] && output[2].cover) {
+        preloads.push(buildImagePreloadTag(output[2].cover, output[2].coverSrcset, coverSizes, '(min-width: 769px)', false));
+      }
+      if (preloads.length > 0) {
+        html = html.replace('</head>', `${preloads.join('\n')}\n</head>`);
         fs.writeFileSync(indexDistPath, html);
-        console.log('Injected LCP cover preload into _site/index.html');
+        console.log(`Injected ${preloads.length} cover preload(s) into _site/index.html`);
       }
     }
   }
@@ -665,12 +694,23 @@ if (fs.existsSync(aboutMdPath) && fs.existsSync(aboutHtmlDistPath)) {
         `$1${escapeHtml(SITE_TITLE)}$2`
       );
 
-      // Inject <link rel="preload"> for the LCP cover image
-      const firstCol = output[0];
-      if (firstCol.cover) {
-        const coverSizes = '(max-width: 480px) 100vw, (max-width: 768px) 50vw, 33vw';
-        const preloadTag = buildImagePreloadTag(firstCol.cover, firstCol.coverSrcset, coverSizes);
-        html = html.replace('</head>', `${preloadTag}\n</head>`);
+      // Inject <link rel="preload"> for the first three cover images.
+      // Index 0 is the LCP (fetchpriority="high", no media restriction).
+      // Index 1 is above the fold on tablet+ (min-width: 481px).
+      // Index 2 is above the fold on desktop only (min-width: 769px).
+      const coverSizes = '(max-width: 480px) 100vw, (max-width: 768px) 50vw, 33vw';
+      const preloads = [];
+      if (output[0] && output[0].cover) {
+        preloads.push(buildImagePreloadTag(output[0].cover, output[0].coverSrcset, coverSizes));
+      }
+      if (output[1] && output[1].cover) {
+        preloads.push(buildImagePreloadTag(output[1].cover, output[1].coverSrcset, coverSizes, '(min-width: 481px)', false));
+      }
+      if (output[2] && output[2].cover) {
+        preloads.push(buildImagePreloadTag(output[2].cover, output[2].coverSrcset, coverSizes, '(min-width: 769px)', false));
+      }
+      if (preloads.length > 0) {
+        html = html.replace('</head>', `${preloads.join('\n')}\n</head>`);
       }
 
       // Pre-render cover grid

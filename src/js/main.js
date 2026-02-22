@@ -40,7 +40,7 @@ function lazyLoad(img) {
 
 // ─── Cover card (used on homepage + "you may also like") ───────────────────
 
-function buildCoverCard(collection, basePath = '', isFirst = false) {
+function buildCoverCard(collection, basePath = '', isFirst = false, isEager = false) {
   const a = document.createElement('a');
   a.className = 'project-cover';
   a.href = `${basePath}collection?slug=${encodeURIComponent(collection.slug)}`;
@@ -63,6 +63,13 @@ function buildCoverCard(collection, basePath = '', isFirst = false) {
     img.src = coverSrc;
     if (coverSrcset) { img.srcset = coverSrcset; img.sizes = coverSizes; }
     img.fetchPriority = 'high';
+    img.onload = () => img.classList.add('loaded');
+    img.onerror = () => img.classList.add('loaded');
+  } else if (isEager) {
+    // Above-the-fold on tablet/desktop — load eagerly but without high priority
+    img.src = coverSrc;
+    if (coverSrcset) { img.srcset = coverSrcset; img.sizes = coverSizes; }
+    img.loading = 'eager';
     img.onload = () => img.classList.add('loaded');
     img.onerror = () => img.classList.add('loaded');
   } else {
@@ -131,10 +138,10 @@ async function renderHomepage() {
   const grid = document.getElementById('cover-grid');
 
   // Static pre-rendered homepage: the cover grid is already in the HTML.
-  // Activate lazy loading for non-LCP cards; reveal the eagerly-loaded LCP image.
+  // Activate lazy loading for below-fold cards; reveal the eagerly-loaded images.
   if (grid && grid.dataset.prerendered === 'true') {
     grid.querySelectorAll('img[data-src]').forEach(img => lazyLoad(img));
-    // The LCP cover image has a real src and no data-src — add 'loaded' once ready.
+    // Eagerly-loaded cover images (indices 0-2) have a real src and no data-src.
     grid.querySelectorAll('img:not([data-src])').forEach(img => {
       if (img.complete) {
         img.classList.add('loaded');
@@ -168,7 +175,7 @@ async function renderHomepage() {
   }
 
   manifest.collections.forEach((col, idx) => {
-    grid.appendChild(buildCoverCard(col, '', idx === 0));
+    grid.appendChild(buildCoverCard(col, '', idx === 0, idx >= 1 && idx <= 2));
   });
 }
 
