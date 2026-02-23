@@ -114,7 +114,7 @@ portfolio/
     about.md                 <- source content for the about page
     profile.jpg              <- optional profile photo; copied to _site/ and preloaded as LCP image on the about page
   build.js                   <- main build script (image optimisation + manifest + pre-render)
-  package.json               <- scripts: dev, build; dependencies: sharp, image-size, marked; devDependencies: terser, clean-css
+  package.json               <- scripts: dev, build; devDependencies: sharp, image-size, marked, terser, clean-css, serve
   .gitignore                 <- must exclude: _site/, .image-cache/, node_modules/
   .github/
     workflows/
@@ -286,13 +286,12 @@ name.
     "dev": "node build.js && npx serve _site",
     "build": "node build.js"
   },
-  "dependencies": {
-    "image-size": "^2.0.0",
-    "marked": "^17.0.0",
-    "sharp": "^0.34.0"
-  },
   "devDependencies": {
     "clean-css": "^5.3.3",
+    "image-size": "^2.0.0",
+    "marked": "^17.0.0",
+    "serve": "^14.2.5",
+    "sharp": "^0.34.0",
     "terser": "^5.46.0"
   }
 }
