@@ -13,6 +13,7 @@
   },
   "devDependencies": {
     "clean-css": "^5.3.3",
+    "serve": "^14.2.5",
     "terser": "^5.46.0"
   }
 }
