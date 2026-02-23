@@ -67,10 +67,12 @@ function buildCoverCard(collection, basePath = '', isFirst = false, isEager = fa
     img.onload = () => img.classList.add('loaded');
     img.onerror = () => img.classList.add('loaded');
   } else if (isEager) {
-    // Above-the-fold on tablet/desktop — load eagerly but without high priority
+    // Above-the-fold on tablet/desktop — load eagerly with high priority
+    // since any of the first three covers can be the LCP candidate.
     img.src = coverSrc;
     if (coverSrcset) { img.srcset = coverSrcset; img.sizes = coverSizes; }
     img.loading = 'eager';
+    img.fetchPriority = 'high';
     img.onload = () => img.classList.add('loaded');
     img.onerror = () => img.classList.add('loaded');
   } else {

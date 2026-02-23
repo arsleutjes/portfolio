@@ -108,19 +108,14 @@ function buildCoverGridHtml(collections) {
     const href = `collection/${encodeURIComponent(col.slug)}/`;
     const coverSrc  = col.cover || '';
     const coverSrcset = col.coverSrcset || null;
-    // Indices 0-2 are visible above the fold on desktop/tablet — render eagerly.
-    // Index 0 is the true LCP and gets fetchpriority="high".
-    // Indices 1-2 use eager loading but no fetchpriority hint.
+    // Indices 0-2 are visible above the fold on desktop/tablet — render eagerly
+    // with fetchpriority="high" so any of them can be the LCP candidate.
     // Indices 3+ are below the fold and use lazy loading with data-src.
     let imgAttrs;
-    if (idx === 0) {
+    if (idx <= 2) {
       imgAttrs = `src="${escapeHtml(coverSrc)}"`
         + (coverSrcset ? ` srcset="${escapeHtml(coverSrcset)}" sizes="${sizes}"` : '')
         + ' loading="eager" fetchpriority="high"';
-    } else if (idx <= 2) {
-      imgAttrs = `src="${escapeHtml(coverSrc)}"`
-        + (coverSrcset ? ` srcset="${escapeHtml(coverSrcset)}" sizes="${sizes}"` : '')
-        + ' loading="eager"';
     } else {
       imgAttrs = `data-src="${escapeHtml(coverSrc)}"`
         + (coverSrcset ? ` data-srcset="${escapeHtml(coverSrcset)}" data-sizes="${escapeHtml(sizes)}"` : '')
@@ -655,10 +650,10 @@ if (fs.existsSync(aboutMdPath) && fs.existsSync(aboutHtmlDistPath)) {
         preloads.push(buildImagePreloadTag(output[0].cover, output[0].coverSrcset, coverSizes));
       }
       if (output[1] && output[1].cover) {
-        preloads.push(buildImagePreloadTag(output[1].cover, output[1].coverSrcset, coverSizes, '(min-width: 481px)', false));
+        preloads.push(buildImagePreloadTag(output[1].cover, output[1].coverSrcset, coverSizes, '(min-width: 481px)'));
       }
       if (output[2] && output[2].cover) {
-        preloads.push(buildImagePreloadTag(output[2].cover, output[2].coverSrcset, coverSizes, '(min-width: 769px)', false));
+        preloads.push(buildImagePreloadTag(output[2].cover, output[2].coverSrcset, coverSizes, '(min-width: 769px)'));
       }
       if (preloads.length > 0) {
         html = html.replace('</head>', `${preloads.join('\n')}\n</head>`);
@@ -695,19 +690,19 @@ if (fs.existsSync(aboutMdPath) && fs.existsSync(aboutHtmlDistPath)) {
       );
 
       // Inject <link rel="preload"> for the first three cover images.
-      // Index 0 is the LCP (fetchpriority="high", no media restriction).
-      // Index 1 is above the fold on tablet+ (min-width: 481px).
-      // Index 2 is above the fold on desktop only (min-width: 769px).
+      // All three get fetchpriority="high" since any can be the LCP on their
+      // respective viewports.  Media conditions gate the 2nd (tablet+) and 3rd
+      // (desktop only) preloads so mobile never fetches unnecessary resources.
       const coverSizes = '(max-width: 480px) 100vw, (max-width: 768px) 50vw, 33vw';
       const preloads = [];
       if (output[0] && output[0].cover) {
         preloads.push(buildImagePreloadTag(output[0].cover, output[0].coverSrcset, coverSizes));
       }
       if (output[1] && output[1].cover) {
-        preloads.push(buildImagePreloadTag(output[1].cover, output[1].coverSrcset, coverSizes, '(min-width: 481px)', false));
+        preloads.push(buildImagePreloadTag(output[1].cover, output[1].coverSrcset, coverSizes, '(min-width: 481px)'));
       }
       if (output[2] && output[2].cover) {
-        preloads.push(buildImagePreloadTag(output[2].cover, output[2].coverSrcset, coverSizes, '(min-width: 769px)', false));
+        preloads.push(buildImagePreloadTag(output[2].cover, output[2].coverSrcset, coverSizes, '(min-width: 769px)'));
       }
       if (preloads.length > 0) {
         html = html.replace('</head>', `${preloads.join('\n')}\n</head>`);
