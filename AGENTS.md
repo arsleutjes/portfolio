@@ -163,22 +163,25 @@ Running `node build.js` produces a clean `_site/` folder:
    tags are left with empty `content`/`href` attributes (valid; crawlers skip blank tags).
 8. **LCP preload for homepage** — `build.js` always injects `<link rel="preload" as="image">`
    hints for the **first three** collection covers into `_site/index.html` (both static and
-   non-static modes). The first cover gets `fetchpriority="high"` (it is the LCP). The second
-   cover is preloaded with `media="(min-width: 481px)"` (visible on tablet + desktop, where the
-   grid is 2+ columns) and the third with `media="(min-width: 769px)"` (desktop only, 3-column
-   grid), so mobile gets no unnecessary fetches. In non-static mode this lets the browser start
-   fetching above-the-fold covers while JS is loading the manifest; in static mode these preloads
-   are part of the full pre-render pass (step 9).
+   non-static modes). All three preloads carry `fetchpriority="high"` because any of the
+   above-the-fold covers can be the LCP candidate on its target viewport. The second cover
+   preload uses `media="(min-width: 481px)"` (visible on tablet + desktop, where the grid is
+   2+ columns) and the third uses `media="(min-width: 769px)"` (desktop only, 3-column grid),
+   so mobile never fetches unnecessary resources. In non-static mode this lets the browser
+   start fetching above-the-fold covers while JS is loading the manifest; in static mode these
+   preloads are part of the full pre-render pass (step 9).
 9. **Static pre-render** (when `content/meta.json` sets `"static": true`) — fully
    pre-renders the homepage cover grid into `_site/index.html` and generates an individual
    `_site/collection/[slug]/index.html` for every collection. Each pre-rendered page:
    - Injects `<link rel="preload" as="image" fetchpriority="high">` in `<head>` for the
      LCP image (800w srcset entry with `imagesrcset` / `imagesizes` for responsive hints),
-     plus media-conditioned preloads for the 2nd and 3rd covers on the homepage (see step 8).
+     plus media-conditioned `fetchpriority="high"` preloads for the 2nd and 3rd covers on
+     the homepage (see step 8).
    - Renders the LCP image with `loading="eager" fetchpriority="high"` so the browser
      discovers and fetches it immediately without waiting for any JavaScript.
-   - Renders the 2nd and 3rd cover images with `src` / `srcset` and `loading="eager"` (no
-     `fetchpriority`) so above-the-fold images on tablet and desktop are not lazy-loaded.
+   - Renders the 2nd and 3rd cover images with `src` / `srcset` and
+     `loading="eager" fetchpriority="high"` so above-the-fold images on tablet and desktop
+     are not lazy-loaded and are treated as high-priority LCP candidates.
    - Renders all other images with `data-src` / `data-srcset` for lazy loading via
      `IntersectionObserver`.
    - Adds `<base href="../../">` on collection pages so all site-root-relative paths
