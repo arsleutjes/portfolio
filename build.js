@@ -12,7 +12,6 @@
 
 const fs = require('fs');
 const path = require('path');
-const sizeOf = require('image-size');
 const sharp = require('sharp');
 const { marked } = require('marked');
 const crypto = require('crypto');
@@ -477,10 +476,9 @@ if (fs.existsSync(aboutMdPath) && fs.existsSync(aboutHtmlDistPath)) {
             fs.copyFileSync(srcFile, fallbackDistFile);
             fullName = f;
             try {
-              const buf = fs.readFileSync(srcFile);
-              const dims = sizeOf.imageSize(buf);
-              fullWidth = dims.width;
-              fullHeight = dims.height;
+              const meta = await sharp(srcFile).metadata();
+              fullWidth = meta.width;
+              fullHeight = meta.height;
             } catch {
               fullWidth = 1920;
               fullHeight = 1080;

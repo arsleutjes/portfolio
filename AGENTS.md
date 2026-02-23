@@ -74,7 +74,7 @@ When proposing or applying any change to this project, agents must:
 | Page generation | `manifest.json` + vanilla JS — no React, Vue, or any framework |
 | Build script | `build.js` — Node.js, runs with `node build.js` (or `npm run build`) |
 | Image optimisation | **`sharp`** — generates responsive WebP variants at 400w, 800w, 1200w, and 1920w (quality 85); requires native bindings |
-| Image dimensions | `image-size` npm package — used as fallback when sharp fails |
+| Image dimensions | Taken from the `sharp` output `info` object; fallback uses `sharp(srcFile).metadata()` |
 | Markdown rendering | `marked` npm package — used server-side at build time to pre-render `about.md` |
 | JS minification | `terser` dev-dependency — minifies `_site/js/main.js` at build time (~50% size reduction) |
 | CSS minification | `clean-css` dev-dependency — minifies the inlined stylesheet in every HTML file (~36% size reduction) |
@@ -114,7 +114,7 @@ portfolio/
     about.md                 <- source content for the about page
     profile.jpg              <- optional profile photo; copied to _site/ and preloaded as LCP image on the about page
   build.js                   <- main build script (image optimisation + manifest + pre-render)
-  package.json               <- scripts: dev, build; devDependencies: sharp, image-size, marked, terser, clean-css, serve
+  package.json               <- scripts: dev, build; devDependencies: sharp, marked, terser, clean-css, serve
   .gitignore                 <- must exclude: _site/, .image-cache/, node_modules/
   .github/
     workflows/
@@ -288,7 +288,6 @@ name.
   },
   "devDependencies": {
     "clean-css": "^5.3.3",
-    "image-size": "^2.0.0",
     "marked": "^17.0.0",
     "serve": "^14.2.5",
     "sharp": "^0.34.0",
